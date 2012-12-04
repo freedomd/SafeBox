@@ -628,18 +628,21 @@ public class SafeBoxClient {
 					} else {
 						System.out.println("The user has not logged in!");
 					}
+					break;
 				case CREATEDIR:
 					if(client.isLogin == true) {
 						client.createDir();
 					} else {
 						System.out.println("The user has not logged in!");
 					}
+					break;
 				case DELETEDIR:
 					if(client.isLogin == true) {
 						client.deleteDir();
 					} else {
 						System.out.println("The user has not logged in!");
 					}
+					break;
 				default:
 					break;
 			}
@@ -649,8 +652,6 @@ public class SafeBoxClient {
 					+ "8. Share Direcotry\n9. Unshare Direcotry\n100. Quit\n");
 		}
 		client.exit();
-
-
 		client.clientSocket.close();
 	}
 
