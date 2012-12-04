@@ -122,20 +122,27 @@ public class Test {
 //			return;
 			
 			
-			String dirPath = "zz";
-			File deleteDir = new File(dirPath);
-			if (deleteDir.exists()) {
-				// delete the directory and all files contained in it in local
-				if (!deleteFolder(deleteDir)) {
-					System.out.println("Error in deleting files on local machine, " + dirPath);
-					return;
-				}
-				System.out.println("Delete on local machine successfully");
-
-			} else {
-				System.out.println("The directory does not exist in the path, failed to delete in local, " + dirPath);
-				return;
-			}	
+//			String dirPath = "zz";
+//			File deleteDir = new File(dirPath);
+//			if (deleteDir.exists()) {
+//				// delete the directory and all files contained in it in local
+//				if (!deleteFolder(deleteDir)) {
+//					System.out.println("Error in deleting files on local machine, " + dirPath);
+//					return;
+//				}
+//				System.out.println("Delete on local machine successfully");
+//
+//			} else {
+//				System.out.println("The directory does not exist in the path, failed to delete in local, " + dirPath);
+//				return;
+//			}
+			String username = "zz";
+			String dirName = "newDir";
+			//String dirPath = parentPath + "\\" + dirName;
+			String parentPath = username + "\\" + dirName;
+			String toServerPath = parentPath.substring(username.length() + 1);
+			//String os = String.format("%d;%s;%s;%s", CREATEDIR, user.getUsername(), toServerPath, dirName);
+			System.out.println("parentPath: " + parentPath + ", toServerPath: " + toServerPath);
 		} catch (AmazonServiceException ase) {
 			System.out
 					.println("Caught an AmazonServiceException, which means your request made it "
