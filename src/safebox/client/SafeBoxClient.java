@@ -254,7 +254,8 @@ public class SafeBoxClient {
 	/**
 	 * Create a directory on local machine
 	 * Put it in the user's account if creation succeed.
-	 * @param dirPath
+	 * @param parentPath
+	 * @param dirName
 	 * @return true if creation succeed, otherwise return false
 	 */
 	public boolean createDirToLocal(String parentPath, String dirName) {
@@ -264,16 +265,16 @@ public class SafeBoxClient {
 			if (!newDir.exists()) {
 				newDir.mkdir();				
 				SafeFile newSafeDir = new SafeFile(1, dirPath, user.getUsername());
-				if (!user.getMyFile().containsKey(dirPath)) {
+				if (!user.getMyFile().containsKey(newSafeDir)) {
 					// add the directory to the map
 					user.getMyFile().put(newSafeDir, new Vector<SafeFile>()); 
 					// if the parent directory does not exist, add it to the map
-					if (!user.getMyFile().containsKey(parentPath)) {
-						SafeFile newParentDir = new SafeFile(1, parentPath, user.getUsername());
+					SafeFile newParentDir = new SafeFile(1, parentPath, user.getUsername());
+					if (!user.getMyFile().containsKey(newParentDir)) {
 						user.getMyFile().put(newParentDir, new Vector<SafeFile>());
 					}
 					// add the directory to the parent
-					user.getMyFile().get(parentPath).add(newSafeDir);
+					user.getMyFile().get(newParentDir).add(newSafeDir);
 					
 					System.out.println("New directory created in local successfully, " + newSafeDir.getFilePath());
 					return true;
@@ -295,7 +296,8 @@ public class SafeBoxClient {
 	 * Create a directory on AWS
 	 * Because there is no way to create an empty folder on AWS using Java SDK,
 	 * a setup file is created under the directory named "username.data".
-	 * @param dirPath
+	 * @param parentPath
+	 * @param dirName
 	 * @return true if creation succeed, otherwise return false
 	 */
 	public boolean createDirToAWS(String parentPath, String dirName) {
@@ -336,7 +338,8 @@ public class SafeBoxClient {
 	
 	/**
 	 * Create a directory on SafeBox server
-	 * @param dirPath
+	 * @param parentPath
+	 * @param dirName
 	 * @return true if creation succeed, otherwise return false
 	 */
 	public boolean createDirToServer(String parentPath, String dirName) {
@@ -352,7 +355,7 @@ public class SafeBoxClient {
 			if (methodID == CREATEDIR_RES) {
 				String result = temp[1];
 				if (result.equals("OK")) {
-					System.out.println("Sending to server succeed, " + dirPath);
+					System.out.println("Creating directory to server succeed, " + dirPath);
 					return true;
 				} else {
 					String failMessage = temp[2];
@@ -400,6 +403,13 @@ public class SafeBoxClient {
 		}
 	}
 	
+	/**
+	 * Delete a directory on AWS
+	 * Recursively delete all the files contained in the directory
+	 * @param parentPath
+	 * @param dirName
+	 * @return true if deletion succeed, otherwise return false
+	 */
 	public boolean deleteDirFromAWS(String parentPath, String dirName) {
 		try {    
 			String dirPath = parentPath + "\\" + dirName;
@@ -435,6 +445,11 @@ public class SafeBoxClient {
         }
 	}
 	
+	/**
+	 * Helper method, recursively delete a directory on local machine
+	 * @param folder
+	 * @return true if deletion succeed, otherwise return false
+	 */
 	public boolean deleteFolder(File folder) {
 	    File[] files = folder.listFiles();
 	    if(files != null) { //some JVMs return null for empty dirs
@@ -449,16 +464,39 @@ public class SafeBoxClient {
 	    return folder.delete();
 	}
 	
+	/**
+	 * Helper method, recursively delete a directory in user's account
+	 * @param folder
+	 * @return true if deletion succeed, otherwise return false
+	 */
 	public boolean deleteSafeFolder(SafeFile delFolder) {
-		for(SafeFile delFile : user.getMyFile().get(delFolder.getFilePath())) {
-			if (user.getMyFile().containsKey(delFile)) {
-				user.getMyFile().remove(delFile);
+		if (user.getMyFile().containsKey(delFolder)) {
+			for(SafeFile delFile : user.getMyFile().get(delFolder)) {
+				if (user.getMyFile().containsKey(delFile)) {
+					if (delFile.getIsDir() == 1) {
+						return deleteSafeFolder(delFile);
+					} else {
+						user.getMyFile().remove(delFile);
+					}
+				} else { // a file that is in the delFolder, but not in the entire file map
+					return false;
+				}
 			}
+			user.getMyFile().remove(delFolder);
+			return true;
+		} else {
+			System.out.println("Directory does not exist in user's account.");
+			return true;
 		}
-		user.getMyFile().remove(dirPath);
 	}
 	
-	
+	/**
+	 * Delete a directory from local machine and user's account
+	 * Recursively delete all the files contained in the directory
+	 * @param parentPath
+	 * @param dirName
+	 * @return true if deletion succeed, otherwise return false
+	 */
 	public boolean deleteDirFromLocal(String parentPath, String dirName) {
 		try {
 			String dirPath = parentPath + "\\" + dirName;
@@ -471,19 +509,15 @@ public class SafeBoxClient {
 				}
 				
 				// delete the directory and all files contained in it from user's account
-				SafeFile deleteSafeDir = new SafeFile(1, dirPath, user.getUsername());
-				if (user.getMyFile().containsKey(deleteSafeDir)) {
-					for(SafeFile delFile : user.getMyFile().get(dirPath)) {
-						if (user.getMyFile().containsKey(delFile)) {
-							user.getMyFile().remove(delFile);
-						}
-					}
-					user.getMyFile().remove(dirPath);					
+				SafeFile deleteSafeDir = new SafeFile(1, dirPath, user.getUsername());				
+				if (deleteSafeFolder(deleteSafeDir)) {				
+					SafeFile parentSafeDir = new SafeFile(1, parentPath, user.getUsername());
+					user.getMyFile().get(parentSafeDir).remove(deleteSafeDir); // delete the directory from its parent's list
 					System.out.println("Directory deleted in local successfully, " + deleteSafeDir.getFilePath());
 					return true;
 				} else {
-					System.out.println("Directory does not exist in user's account, deleted in local successfully, " + deleteSafeDir.getFilePath());
-					return true;
+					System.out.println("Failed to delete the directory in local , " + deleteSafeDir.getFilePath());
+					return false;
 				}
 			} else {
 				System.out.println("The directory does not exist in the path, failed to delete in local, " + dirPath);
@@ -495,10 +529,52 @@ public class SafeBoxClient {
 		}
 	}
 	
+	/**
+	 * Delete a directory from SafeBox server
+	 * @param parentPath
+	 * @param dirName
+	 * @return true if deletion succeed, otherwise return false
+	 */
+	public boolean deleteDirFromServer(String parentPath, String dirName) {
+		try {
+			String dirPath = parentPath + "\\" + dirName;
+			String os = String.format("%d;%s;%s;", DELETEDIR, user.getUsername(), dirPath);
+			System.out.println(os);
+			outToServer.println(os);
+			outToServer.flush();
+
+			String[] temp = inFromServer.readLine().split(";");
+			int methodID = Integer.parseInt(temp[0]);
+			if (methodID == DELETEDIR_RES) {
+				String result = temp[1];
+				if (result.equals("OK")) {
+					System.out.println("Deleting diretory from server succeed, " + dirPath);
+					return true;
+				} else {
+					String failMessage = temp[2];
+					System.out.println(failMessage);
+					return false;
+				}
+			} else {
+				return false;
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return false;
+		}
+	}
+	
+	/**
+	 * Synchronized the files from server and AWS after login
+	 * @param user
+	 */
 	public void synchronize(User user) {
 		System.out.println("Synchronize from server");
 	}
 	
+	/**
+	 * Exit the SafeBox client
+	 */
 	public void exit() {
 		try {
 			System.out.println("Exit:");
@@ -512,9 +588,7 @@ public class SafeBoxClient {
 			e.printStackTrace();
 		}
 	}
-	/**
-	 * @param args
-	 */
+
 	public static void main(String[] args) throws Exception {
 		SafeBoxClient client = new SafeBoxClient("169.254.69.85");
 
