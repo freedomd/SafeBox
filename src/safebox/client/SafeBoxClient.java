@@ -345,7 +345,7 @@ public class SafeBoxClient {
 	public boolean createDirToServer(String parentPath, String dirName) {
 		try {
 			String dirPath = parentPath + "\\" + dirName;
-			String os = String.format("%d;%s;%s;", CREATEDIR, user.getUsername(), dirPath);
+			String os = String.format("%d;%s;%s;%s", CREATEDIR, user.getUsername(), parentPath, dirName);
 			System.out.println(os);
 			outToServer.println(os);
 			outToServer.flush();
@@ -380,7 +380,7 @@ public class SafeBoxClient {
 		try {
 			String parentPath, dirName;
 			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-			System.out.println("CreateDir:\nEnter the parent path(under the root dir): ");
+			System.out.println("DeleteDir:\nEnter the parent path(under the root dir): ");
 			parentPath = String.format("%s\\%s", user.getUsername(), br.readLine());
 			System.out.println("Enter the directory name: ");
 			dirName = br.readLine();
@@ -455,7 +455,7 @@ public class SafeBoxClient {
 	    if(files != null) { //some JVMs return null for empty dirs
 	        for(File f: files) {
 	            if(f.isDirectory()) {
-	                return deleteFolder(f);
+	            	if (!deleteFolder(f)) return false;
 	            } else {
 	                if (!f.delete()) return false;
 	            }
@@ -538,7 +538,7 @@ public class SafeBoxClient {
 	public boolean deleteDirFromServer(String parentPath, String dirName) {
 		try {
 			String dirPath = parentPath + "\\" + dirName;
-			String os = String.format("%d;%s;%s;", DELETEDIR, user.getUsername(), dirPath);
+			String os = String.format("%d;%s;%s;%s", DELETEDIR, user.getUsername(), parentPath, dirName);
 			System.out.println(os);
 			outToServer.println(os);
 			outToServer.flush();
