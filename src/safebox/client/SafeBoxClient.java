@@ -350,7 +350,13 @@ public class SafeBoxClient {
 	public boolean createDirToServer(String parentPath, String dirName) {
 		try {
 			String dirPath = parentPath + "\\" + dirName;
-			String toServerPath = parentPath.substring(user.getUsername().length() + 1);
+			String toServerPath;
+			if(parentPath.length() != user.getUsername().length() + 1) {
+				toServerPath = parentPath.substring(user.getUsername().length() + 1);
+			}
+			else {
+				toServerPath = null;
+			}
 			String os = String.format("%d;%s;%s;%s", CREATEDIR, user.getUsername(), toServerPath, dirName);
 			System.out.println(os);
 			outToServer.println(os);
@@ -544,7 +550,13 @@ public class SafeBoxClient {
 	public boolean deleteDirFromServer(String parentPath, String dirName) {
 		try {
 			String dirPath = parentPath + "\\" + dirName;
-			String toServerPath = parentPath.substring(user.getUsername().length() + 1);
+			String toServerPath;
+			if(parentPath.length() != user.getUsername().length() + 1) {
+				toServerPath = parentPath.substring(user.getUsername().length() + 1);
+			}
+			else {
+				toServerPath = null;
+			}
 			String os = String.format("%d;%s;%s;%s", DELETEDIR, user.getUsername(), toServerPath, dirName);
 			System.out.println(os);
 			outToServer.println(os);
@@ -698,7 +710,13 @@ public class SafeBoxClient {
 	public boolean putFileToServer(String parentPath, String fileName) {
 		try {
 			String filePath = parentPath + "\\" + fileName;
-			String toServerPath = parentPath.substring(user.getUsername().length() + 1);
+			String toServerPath;
+			if(parentPath.length() != user.getUsername().length() + 1) {
+				toServerPath = parentPath.substring(user.getUsername().length() + 1);
+			}
+			else {
+				toServerPath = null;
+			}
 			String os = String.format("%d;%s;%s;%s", PUTFILE, user.getUsername(), toServerPath, fileName);
 			System.out.println(os);
 			outToServer.println(os);
@@ -845,7 +863,13 @@ public class SafeBoxClient {
 	public boolean removeFileFromServer(String parentPath, String fileName) {
 		try {
 			String filePath = parentPath + "\\" + fileName;
-			String toServerPath = parentPath.substring(user.getUsername().length() + 1);
+			String toServerPath;
+			if(parentPath.length() != user.getUsername().length() + 1) {
+				toServerPath = parentPath.substring(user.getUsername().length() + 1);
+			}
+			else {
+				toServerPath = null;
+			}
 			String os = String.format("%d;%s;%s;%s", REMOVEFILE, user.getUsername(), toServerPath, fileName);
 			System.out.println(os);
 			outToServer.println(os);
