@@ -10,7 +10,8 @@ public class SafeFile {
 		this.isDir = isDir;
 		this.filePath = filePath;
 		this.owner = owner;
-		String[] dirs = filePath.split("\\");
+		System.out.println(filePath);
+		String[] dirs = filePath.split("\\\\");
 		this.filename = dirs[dirs.length - 1];
 	}
 

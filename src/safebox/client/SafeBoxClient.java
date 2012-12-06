@@ -99,7 +99,6 @@ public class SafeBoxClient {
 			System.out.println(os);
 			outToServer.println(os);
 			outToServer.flush();
-			System.out.println("kjla");
 			
 			String[] temp = inFromServer.readLine().split(";");
 			int methodID = Integer.parseInt(temp[0]);
@@ -228,7 +227,7 @@ public class SafeBoxClient {
 	 */
 	public void createDir() {
 		try {
-			String parentPath, dirName;
+			String parentPath, dirName, dirPath;
 			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 			System.out.println("CreateDir:\nEnter the parent path(under the root dir): ");
 			parentPath = String.format("%s\\%s", user.getUsername(), br.readLine());
@@ -245,7 +244,12 @@ public class SafeBoxClient {
 				return;
 			}
 			
-			System.out.println("New directory created successfully, " + parentPath + "\\" + dirName);
+			if (parentPath.length() == user.getUsername().length() + 1) {
+				dirPath = parentPath + dirName;
+			} else {
+				dirPath = parentPath + "\\" + dirName;
+			}
+			System.out.println("New directory created successfully, " + dirPath);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -261,12 +265,18 @@ public class SafeBoxClient {
 	 */
 	public boolean createDirToLocal(String parentPath, String dirName) {
 		try {
-			String dirPath = parentPath + "\\" + dirName;
-
+			String dirPath;
+			if (parentPath.length() == user.getUsername().length() + 1) {
+				dirPath = parentPath + dirName;
+			} else {
+				dirPath = parentPath + "\\" + dirName;
+			}
+			
+			System.out.println(dirPath);
 			// create on local machine
 			File newDir = new File(dirPath);
 			if (!newDir.exists()) {
-				newDir.mkdir();	
+				newDir.mkdirs();	
 			} else {
 				System.out.println("The directory exits in local, " + dirPath);
 			}
@@ -306,9 +316,14 @@ public class SafeBoxClient {
 	 */
 	public boolean createDirToAWS(String parentPath, String dirName) {
 		try {    
-			String dirPath = parentPath + "\\" + dirName;
+			String dirPath;
+			if (parentPath.length() == user.getUsername().length() + 1) {
+				dirPath = parentPath + dirName;
+			} else {
+				dirPath = parentPath + "\\" + dirName;
+			}
 	        // create a file to setup the folder on S3
-			String setupPath = dirPath + dirName + ".data";
+			String setupPath = dirPath + "\\" + dirName + ".data";
 			File setupFile = new File(setupPath); 
 			setupFile.createNewFile();
 			System.out.println("Setup file is created successfully, " + setupPath);
@@ -317,7 +332,7 @@ public class SafeBoxClient {
 	        String key = setupPath.replace("\\", "/");
 	        
             fileStorage.putObject(new PutObjectRequest(bucketName, key, setupFile));
-            System.out.println("Uploding to S3 succeed, " + dirPath);
+            System.out.println("Uploding to S3 succeed, " + setupPath);
 	        return true;
 		} catch (AmazonServiceException ase) {
             System.out.println("Caught an AmazonServiceException, which means your request made it "
@@ -348,12 +363,13 @@ public class SafeBoxClient {
 	 */
 	public boolean createDirToServer(String parentPath, String dirName) {
 		try {
-			String dirPath = parentPath + "\\" + dirName;
-			String toServerPath;
+			String dirPath, toServerPath;
 			if(parentPath.length() != user.getUsername().length() + 1) {
+				dirPath = parentPath + "\\" + dirName;
 				toServerPath = parentPath.substring(user.getUsername().length() + 1);
 			}
 			else {
+				dirPath = parentPath + dirName;
 				toServerPath = null;
 			}
 			String os = String.format("%d;%s;%s;%s", CREATEDIR, user.getUsername(), toServerPath, dirName);
@@ -390,7 +406,7 @@ public class SafeBoxClient {
 	 */
 	public void deleteDir() {
 		try {
-			String parentPath, dirName;
+			String parentPath, dirName, dirPath;
 			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 			System.out.println("DeleteDir:\nEnter the parent path(under the root dir): ");
 			parentPath = String.format("%s\\%s", user.getUsername(), br.readLine());
@@ -407,7 +423,12 @@ public class SafeBoxClient {
 				return;
 			}
 			
-			System.out.println("Directory deleted successfully, " + parentPath + "\\" + dirName);
+			if (parentPath.length() == user.getUsername().length() + 1) {
+				dirPath = parentPath + dirName;
+			} else {
+				dirPath = parentPath + "\\" + dirName;
+			}
+			System.out.println("Directory deleted successfully, " + dirPath);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -422,7 +443,12 @@ public class SafeBoxClient {
 	 */
 	public boolean deleteDirFromAWS(String parentPath, String dirName) {
 		try {    
-			String dirPath = parentPath + "\\" + dirName;
+			String dirPath;
+			if (parentPath.length() == user.getUsername().length() + 1) {
+				dirPath = parentPath + dirName;
+			} else {
+				dirPath = parentPath + "\\" + dirName;
+			}
 			
 			String bucketName = "SafeBox";
 	        String key = dirPath.replace("\\", "/");
@@ -509,7 +535,12 @@ public class SafeBoxClient {
 	 */
 	public boolean deleteDirFromLocal(String parentPath, String dirName) {
 		try {
-			String dirPath = parentPath + "\\" + dirName;
+			String dirPath;
+			if (parentPath.length() == user.getUsername().length() + 1) {
+				dirPath = parentPath + dirName;
+			} else {
+				dirPath = parentPath + "\\" + dirName;
+			}
 			
 			// delete on local machine
 			File deleteDir = new File(dirPath);
@@ -548,12 +579,13 @@ public class SafeBoxClient {
 	 */
 	public boolean deleteDirFromServer(String parentPath, String dirName) {
 		try {
-			String dirPath = parentPath + "\\" + dirName;
-			String toServerPath;
+			String dirPath, toServerPath;
 			if(parentPath.length() != user.getUsername().length() + 1) {
+				dirPath = parentPath + "\\" + dirName;
 				toServerPath = parentPath.substring(user.getUsername().length() + 1);
 			}
 			else {
+				dirPath = parentPath + dirName;
 				toServerPath = null;
 			}
 			String os = String.format("%d;%s;%s;%s", DELETEDIR, user.getUsername(), toServerPath, dirName);
@@ -590,7 +622,7 @@ public class SafeBoxClient {
 	 */
 	public void putFile() {
 		try {
-			String parentPath, fileName;
+			String parentPath, fileName, filePath;
 			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 			System.out.println("PutFile:\nEnter the parent path(under the root dir): ");
 			parentPath = String.format("%s\\%s", user.getUsername(), br.readLine());
@@ -607,7 +639,12 @@ public class SafeBoxClient {
 				return;
 			}
 			
-			System.out.println("New File created successfully, " + parentPath + "\\" + fileName);
+			if (parentPath.length() == user.getUsername().length() + 1) {
+				filePath = parentPath + fileName;
+			} else {
+				filePath = parentPath + "\\" + fileName;
+			}
+			System.out.println("New File created successfully, " + filePath);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -622,7 +659,12 @@ public class SafeBoxClient {
 	 */
 	public boolean putFileToLocal(String parentPath, String fileName) {
 		try {
-			String filePath = parentPath + "\\" + fileName;
+			String filePath;
+			if (parentPath.length() == user.getUsername().length() + 1) {
+				filePath = parentPath + fileName;
+			} else {
+				filePath = parentPath + "\\" + fileName;
+			}
 			
 			// create on local machine
 			File newFile = new File(filePath);
@@ -665,7 +707,12 @@ public class SafeBoxClient {
 	 */
 	public boolean putFileToAWS(String parentPath, String fileName) {
 		try {    
-			String filePath = parentPath + "\\" + fileName;
+			String filePath;
+			if (parentPath.length() == user.getUsername().length() + 1) {
+				filePath = parentPath + fileName;
+			} else {
+				filePath = parentPath + "\\" + fileName;
+			}
 			
 			File newFile = new File(filePath); 
 			if (!newFile.exists()) {
@@ -708,12 +755,13 @@ public class SafeBoxClient {
 	 */
 	public boolean putFileToServer(String parentPath, String fileName) {
 		try {
-			String filePath = parentPath + "\\" + fileName;
-			String toServerPath;
+			String filePath, toServerPath;
 			if(parentPath.length() != user.getUsername().length() + 1) {
+				filePath = parentPath + "\\" + fileName;
 				toServerPath = parentPath.substring(user.getUsername().length() + 1);
 			}
 			else {
+				filePath = parentPath + fileName;
 				toServerPath = null;
 			}
 			String os = String.format("%d;%s;%s;%s", PUTFILE, user.getUsername(), toServerPath, fileName);
@@ -750,7 +798,7 @@ public class SafeBoxClient {
 	 */
 	public void removeFile() {
 		try {
-			String parentPath, fileName;
+			String parentPath, fileName, filePath;
 			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 			System.out.println("RemoveFile:\nEnter the parent path(under the root dir): ");
 			parentPath = String.format("%s\\%s", user.getUsername(), br.readLine());
@@ -767,7 +815,12 @@ public class SafeBoxClient {
 				return;
 			}
 			
-			System.out.println("File deleted successfully, " + parentPath + "\\" + fileName);
+			if (parentPath.length() == user.getUsername().length() + 1) {
+				filePath = parentPath + fileName;
+			} else {
+				filePath = parentPath + "\\" + fileName;
+			}
+			System.out.println("File deleted successfully, " + filePath);
 			return;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -783,7 +836,12 @@ public class SafeBoxClient {
 	 */
 	public boolean removeFileFromAWS(String parentPath, String fileName) {
 		try {    
-			String filePath = parentPath + "\\" + fileName;
+			String filePath;
+			if (parentPath.length() == user.getUsername().length() + 1) {
+				filePath = parentPath + fileName;
+			} else {
+				filePath = parentPath + "\\" + fileName;
+			}
 			
 			String bucketName = "SafeBox";
 	        String key = filePath.replace("\\", "/");
@@ -820,7 +878,12 @@ public class SafeBoxClient {
 	 */
 	public boolean removeFileFromLocal(String parentPath, String fileName) {
 		try {
-			String filePath = parentPath + "\\" + fileName;
+			String filePath;
+			if (parentPath.length() == user.getUsername().length() + 1) {
+				filePath = parentPath + fileName;
+			} else {
+				filePath = parentPath + "\\" + fileName;
+			}
 			
 			// delete on local machine
 			File rmFile = new File(filePath);
@@ -861,12 +924,13 @@ public class SafeBoxClient {
 	 */
 	public boolean removeFileFromServer(String parentPath, String fileName) {
 		try {
-			String filePath = parentPath + "\\" + fileName;
-			String toServerPath;
+			String filePath, toServerPath;
 			if(parentPath.length() != user.getUsername().length() + 1) {
+				filePath = parentPath + "\\" + fileName;
 				toServerPath = parentPath.substring(user.getUsername().length() + 1);
 			}
 			else {
+				filePath = parentPath + fileName;
 				toServerPath = null;
 			}
 			String os = String.format("%d;%s;%s;%s", REMOVEFILE, user.getUsername(), toServerPath, fileName);
@@ -922,7 +986,7 @@ public class SafeBoxClient {
 	}
 
 	public static void main(String[] args) throws Exception {
-		SafeBoxClient client = new SafeBoxClient("169.254.69.85");
+		SafeBoxClient client = new SafeBoxClient("192.168.1.5");
 
 		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 		int cmd;
@@ -992,7 +1056,7 @@ public class SafeBoxClient {
 				default:
 					break;
 			}
-			System.out.println("Enter operation number:\n"
+			System.out.println("\nEnter operation number:\n"
 					+ "1. Register\n2. Login\n3. Logout\n4. Create Directory\n"
 					+ "5. Delete Direcotry\n6. Put File\n7. Remove File\n"
 					+ "8. Share Direcotry\n9. Unshare Direcotry\n100. Quit\n");
