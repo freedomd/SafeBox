@@ -8,7 +8,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.security.KeyPairGenerator;
 import java.util.UUID;
+
+import javax.crypto.Cipher;
 
 import safebox.file.SafeFile;
 
@@ -136,13 +139,42 @@ public class Test {
 //				System.out.println("The directory does not exist in the path, failed to delete in local, " + dirPath);
 //				return;
 //			}
-			String username = "zz";
-			String dirName = "newDir";
-			//String dirPath = parentPath + "\\" + dirName;
-			String parentPath = username + "\\" + dirName;
-			String toServerPath = parentPath.substring(username.length() + 1);
-			//String os = String.format("%d;%s;%s;%s", CREATEDIR, user.getUsername(), toServerPath, dirName);
-			System.out.println("parentPath: " + parentPath + ", toServerPath: " + toServerPath);
+//			String username = "zz";
+//			String dirName = "newDir";
+//			//String dirPath = parentPath + "\\" + dirName;
+//			String parentPath = username + "\\" + dirName;
+//			String toServerPath = parentPath.substring(username.length() + 1);
+//			//String os = String.format("%d;%s;%s;%s", CREATEDIR, user.getUsername(), toServerPath, dirName);
+//			System.out.println("parentPath: " + parentPath + ", toServerPath: " + toServerPath);
+			
+//			String filePath = "a\\b\\c";
+//			
+//			File newFile = new File(filePath);
+//			if (!newFile.exists()) {
+//				//newFile.createNewFile();
+//				newFile.mkdirs();
+//			} else {
+//				System.out.println("File exists in local, " + filePath);
+//			}
+			
+			int cmd = 0;
+			BufferedReader br = new BufferedReader(new	InputStreamReader(System.in));
+
+			try {
+				cmd = Integer.parseInt(br.readLine());
+			} catch (NumberFormatException e) {
+				System.out.println("please enter the number listed above!");
+			}
+			
+			while (cmd != 100) {
+				System.out.println("reenter:");
+				try {
+					cmd = Integer.parseInt(br.readLine());
+				} catch (NumberFormatException e) {
+					System.out.println("please enter the number listed above!");
+				}
+			}
+			
 		} catch (AmazonServiceException ase) {
 			System.out
 					.println("Caught an AmazonServiceException, which means your request made it "
