@@ -57,9 +57,10 @@ public class ServerThread extends Thread {
 		this.socket = client;
 		this.running = true;
 		this.userMap = userMap;
+		
 		this.globalMap = globalMap;
 		AWSCredentials c = new BasicAWSCredentials("AKIAIXKDAUTHKZNTDMFA", "XixuCVDrlemEH9SE3aPCVRym5V8CgXpp9y+nHRrQ");
-		AmazonS3 fileStorage = new AmazonS3Client(c);
+		this.fileStorage = new AmazonS3Client(c);
 		
 		try {
 			this.fromClient =
@@ -82,10 +83,12 @@ public class ServerThread extends Thread {
 			if( userMap.updateSocket(fields[1], this.socket) ) {
 				response = String.format("%d;OK;", LOGIN_RES); 
 				List<String> requests = userMap.getUserInfo(fields[1]).getUnhandledRequests(); // get requests
-				Iterator<String> rit = requests.iterator();
-				while(rit.hasNext()) { // send every request
-					toClient.println(rit.next());
-	            	toClient.flush();
+				if(requests != null) {
+					Iterator<String> rit = requests.iterator();
+					while(rit.hasNext()) { // send every request
+						toClient.println(rit.next());
+						toClient.flush();
+					}
 				}
 				userMap.getUserInfo(fields[1]).clearRequestsList(); // clear request list
 			} else {
@@ -100,14 +103,16 @@ public class ServerThread extends Thread {
 	public boolean createAWSRoot(String rootname) {
 		try {    
 	        // create a file to setup the folder on S3
-			String setupPath = rootname + ".data";
+			File newDir = new File(rootname);
+			newDir.mkdirs();	
+			String setupPath = rootname + "\\" + rootname + ".data";
 			File setupFile = new File(setupPath); 
 			setupFile.createNewFile();
 			
 			String bucketName = "SafeBox";
 	        String key = setupPath.replace("\\", "/");
 	        
-            fileStorage.putObject(new PutObjectRequest(bucketName, key, setupFile));
+            fileStorage.putObject(bucketName, key, setupFile);
 	        return true;
 		} catch (AmazonServiceException ase) {
             System.out.println("Caught an AmazonServiceException, which means your request made it "
@@ -135,7 +140,7 @@ public class ServerThread extends Thread {
 		if( userMap.addUserInfo(fields[1], fields[2], this.socket) ) { // success
 			// create a root directory in AWS for the new user
 			if( !createAWSRoot(fields[1])) {
-				userMap.deleteUserInfo(fields[1]); // delete user info in the map
+				//userMap.deleteUserInfo(fields[1]); // delete user info in the map
 				response = String.format("%d;FAIL;Cannot create root directory in AWS;", REGISTER_RES); 
 			} else {
 				// initialize in UserFileMap after success
@@ -152,9 +157,10 @@ public class ServerThread extends Thread {
 	public String logout(String [] fields) {
 		String response;
 		if( userMap.updateSocket(fields[1], null) ) {
+			System.out.println(fields[1] + " logout");
 			response = String.format("%d;OK;", LOGOUT_RES); 
 		} else { // fail
-			response = String.format("%d;FAIL;No such user %s exists;", PUTFILE_RES, fields[1]); 
+			response = String.format("%d;FAIL;No such user %s exists;", LOGOUT_RES, fields[1]); 
 		}
 		return response;
 	}
@@ -165,12 +171,12 @@ public class ServerThread extends Thread {
 		if( user != null ) {
 			String message = globalMap.get(fields[1]).addNewFile(DIR, fields[2], fields[3], fields[1]); // type, parent path, filename, owner name
 			if(message == null) {
-				response = String.format("%d;OK;", CREATEDIR_RES); 
+				response = String.format("%d;OK;%s;%s;", CREATEDIR_RES, fields[2], fields[3]); 
 			} else {
-				response = String.format("%d;FAIL;%s;", CREATEDIR_RES, message); 
+				response = String.format("%d;FAIL;%s;%s;%s;", CREATEDIR_RES, message, fields[2], fields[3]); 
 			}
 		} else {
-			response = String.format("%d;FAIL;No such user %s exists;", PUTFILE_RES, fields[1]); 
+			response = String.format("%d;FAIL;No such user %s exists;%s;%s;", CREATEDIR_RES, fields[1], fields[2], fields[3]); 
 		}
 		return response;
 	}
@@ -179,14 +185,14 @@ public class ServerThread extends Thread {
 		String response;
 		UserInfo user = userMap.getUserInfo(fields[1]); // get user info
 		if( user != null ) {
-			String message = globalMap.get(fields[1]).deleteFile(fields[2], fields[3], fields[1]); // type, parent path, filename, owner name
+			String message = globalMap.get(fields[1]).deleteFile(DIR, fields[2], fields[3], fields[1]); // type, parent path, filename, owner name
 			if(message == null) {
-				response = String.format("%d;OK;", DELETEDIR_RES); 
+				response = String.format("%d;OK;%s;%s;", DELETEDIR_RES, fields[2], fields[3]); 
 			} else {
-				response = String.format("%d;FAIL;%s;", DELETEDIR_RES, message); 
+				response = String.format("%d;FAIL;%s;%s;%s;", DELETEDIR_RES, message, fields[2], fields[3]); 
 			}
 		} else {
-			response = String.format("%d;FAIL;No such user %s exists;", PUTFILE_RES, fields[1]); 
+			response = String.format("%d;FAIL;No such user %s exists;%s;%s;", DELETEDIR_RES, fields[1], fields[2], fields[3]); 
 		}
 		return response;
 	}
@@ -197,12 +203,12 @@ public class ServerThread extends Thread {
 		if( user != null ) {
 			String message = globalMap.get(fields[1]).addNewFile(FILE, fields[2], fields[3], fields[1]); // type, parent path, filename, owner name
 			if(message == null) {
-				response = String.format("%d;OK;", PUTFILE_RES); 
+				response = String.format("%d;OK;%s;%s;", PUTFILE_RES, fields[2], fields[3]); 
 			} else {
-				response = String.format("%d;FAIL;%s;", PUTFILE_RES, message); 
+				response = String.format("%d;FAIL;%s;%s;%s;", PUTFILE_RES, message, fields[2], fields[3]); 
 			}
 		} else {
-			response = String.format("%d;FAIL;No such user %s exists;", PUTFILE_RES, fields[1]); 
+			response = String.format("%d;FAIL;No such user %s exists;%s;%s;", PUTFILE_RES, fields[1], fields[2], fields[3]); 
 		}
 		return response;
 	}
@@ -211,14 +217,14 @@ public class ServerThread extends Thread {
 		String response;
 		UserInfo user = userMap.getUserInfo(fields[1]); // get user info
 		if( user != null ) {
-			String message = globalMap.get(fields[1]).deleteFile(fields[2], fields[3], fields[1]); // type, parent path, filename, owner name
+			String message = globalMap.get(fields[1]).deleteFile(FILE, fields[2], fields[3], fields[1]); // type, parent path, filename, owner name
 			if(message == null) {
-				response = String.format("%d;OK;", REMOVEFILE_RES); 
+				response = String.format("%d;OK;%s;%s;", REMOVEFILE_RES, fields[2], fields[3]); 
 			} else {
-				response = String.format("%d;FAIL;%s;", REMOVEFILE_RES, message); 
+				response = String.format("%d;FAIL;%s;%s;%s;", REMOVEFILE_RES, message, fields[2], fields[3]); 
 			}
 		} else {
-			response = String.format("%d;FAIL;No such user %s exists;", PUTFILE_RES, fields[1]); 
+			response = String.format("%d;FAIL;No such user %s exists;%s;%s;", REMOVEFILE_RES, fields[1], fields[2], fields[3]); 
 		}
 		return response;
 	}
@@ -335,7 +341,7 @@ public class ServerThread extends Thread {
 			Socket friendSocket = friend.getSocket();
 			
 			// delete share structure info
-			String message = globalMap.get(fields[2]).deleteFile(fields[3], fields[4], fields[1]); // parent path, filename, owner name
+			String message = globalMap.get(fields[2]).deleteFile(DIR, fields[3], fields[4], fields[1]); // parent path, filename, owner name
 			if(message != null) {
 				response = String.format("%d;FAIL;%s;", UNSHAREDIR_RES, message); 
 				return response;
@@ -420,7 +426,7 @@ public class ServerThread extends Thread {
 					   break;
 				   default: System.out.println("Invalid Request."); break;
 				}
-				//System.out.println(response);
+				System.out.println(response);
 				toClient.println(response);
             	toClient.flush();
 				

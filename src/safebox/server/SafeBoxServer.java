@@ -21,6 +21,13 @@ public class SafeBoxServer {
 	   ServerSocket server = new ServerSocket(8000);
 	   System.out.println("Welcome to SafeBoxServer.");
 	   
+	   /*****************************
+		 * Hardcode part, remember to delete them
+		 */
+		userMap.addUserInfo("zz", "123", null);
+		UserFileMap ufm = new UserFileMap("zz");
+		globalMap.put("zz", ufm);
+	   
        while(true) {
           Socket client = server.accept();
           clientNum++;
