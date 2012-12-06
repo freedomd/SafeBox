@@ -20,8 +20,6 @@ public class UserInfo {
 		this.username = username;
 		this.password = password;
 		this.socket = socket;
-		this.requests = null;
-		
 	}
 	
 	public String getUsername() {
@@ -50,6 +48,8 @@ public class UserInfo {
 	}
 	
 	public void clearRequestsList(){
-		this.requests.clear();
+		if( this.requests != null ) {
+			this.requests.clear();
+		}
 	}
 }
