@@ -3,12 +3,15 @@ package safebox.file;
 public class SafeFile {
 	private int isDir; // 0 for file, 1 for directory
 	private String owner;
+	private String filename;
 	private String filePath;
 	
 	public SafeFile(int isDir, String filePath, String owner) {
 		this.isDir = isDir;
 		this.filePath = filePath;
 		this.owner = owner;
+		String[] dirs = filePath.split("\\");
+		this.filename = dirs[dirs.length - 1];
 	}
 
 	/**
@@ -16,6 +19,10 @@ public class SafeFile {
 	 */
 	public int getIsDir() {
 		return isDir;
+	}
+	
+	public String getFilename () {
+		return filename;
 	}
 
 	/**

@@ -4,6 +4,8 @@
 package safebox.server;
 //import java.io.*;
 import java.net.*;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @author Rongdi Huang
@@ -12,6 +14,7 @@ import java.net.*;
 public class SafeBoxServer {
 	static int clientNum = 0; // allocate id to client
 	static UserInfoMap userMap = new UserInfoMap(); // user information map
+	static Map<String, UserFileMap> globalMap = new ConcurrentHashMap<String, UserFileMap>(); // each user keeps a file map
 
 	public static void main(String argv[]) throws Exception {
 		
@@ -21,7 +24,7 @@ public class SafeBoxServer {
        while(true) {
           Socket client = server.accept();
           clientNum++;
-          ServerThread sThread = new ServerThread(client, clientNum, userMap); // create a new thread for this client
+          ServerThread sThread = new ServerThread(client, clientNum, userMap, globalMap); // create a new thread for this client
           sThread.start(); // run!
        }
       

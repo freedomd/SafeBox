@@ -27,6 +27,15 @@ public class UserInfoMap {
 		}
 	}
 	
+	public boolean deleteUserInfo(String username) {
+		if (map.get(username) != null) { // already exists
+			map.remove(username);
+			return true;
+		} else {
+			return false;
+		}
+	}
+	
 	public boolean authenticate (String username, String password) {
 		System.out.println(username + " login.");
 		UserInfo user = map.get(username);
@@ -45,7 +54,7 @@ public class UserInfoMap {
 			return false;
 		} else{
 			user.resetSocket(socket);
-			map.replace(username, user);
+			//map.replace(username, user);
 			return true;
 		}
 	}
