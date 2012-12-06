@@ -32,19 +32,18 @@ public class SafeBoxClient {
 	private BufferedReader inFromServer;
 	
 	/* client requests */
-	final static int  REGISTER = 1,	LOGIN = 2,		LOGOUT = 3, 
-				CREATEDIR = 4, 	DELETEDIR = 5,	
-				PUTFILE = 6, 	REMOVEFILE = 7, 
-				SHAREDIR = 8,	UNSHAREDIR = 9,
-				ACCEPT = 10, 	REJECT = 11, 	SYNC = 99, 
-				EXIT = 100;
+	static final int  REGISTER = 1,		LOGIN = 2,		LOGOUT = 3, 	EXIT = 100, 
+					  CREATEDIR = 4, 	DELETEDIR = 5,	
+					  PUTFILE = 6, 		REMOVEFILE = 7, 
+					  SHAREDIR = 8,		UNSHAREDIR = 9,
+					  ACCEPT = 10, 		REJECT = 11, 	SYNC = 99;
 	/* server requests */
-	final static int  REGISTER_RES = 1,	LOGIN_RES = 2,		LOGOUT_RES = 3, 
-		 		CREATEDIR_RES = 4,	DELETEDIR_RES = 5,	
-		 		PUTFILE_RES = 6, 	REMOVEFILE_RES = 7, 
-		 		SHAREDIR_REQ = 8, 	SHAREDIR_RES = 9,  	UNSHAREDIR_NOTI = 10,	UNSHAREDIR_RES = 11,
-		 		PUSH_PUT = 12, 		PUSH_REMOVE = 13, 	SYNC_RES = 99,
-		 		EXIT_RES = 100; 
+	static final int  REGISTER_RES = 1,	LOGIN_RES = 2,	LOGOUT_RES = 3, EXIT_RES = 100, 
+		 			  CREATEDIR_RES = 4,DELETEDIR_RES = 5,	
+		 			  PUTFILE_RES = 6, 	REMOVEFILE_RES = 7, 
+		 			  SHAREDIR_REQ = 8, SHAREDIR_REQ_RES = 14, SHAREDIR_RES = 9,  UNSHAREDIR_NOTI = 10,	UNSHAREDIR_RES = 11,
+		 			  PUSH_PUT = 12, 	PUSH_REMOVE = 13, 	SYNC_RES = 99,
+					  ACCEPT_RES = 15,  REJECT_RES = 16;
 
 	/**
 	 * Constructor, take the server's address as parameter.
