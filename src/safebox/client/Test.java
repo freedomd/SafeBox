@@ -157,23 +157,25 @@ public class Test {
 //				System.out.println("File exists in local, " + filePath);
 //			}
 			
-			int cmd = 0;
-			BufferedReader br = new BufferedReader(new	InputStreamReader(System.in));
-
-			try {
-				cmd = Integer.parseInt(br.readLine());
-			} catch (NumberFormatException e) {
-				System.out.println("please enter the number listed above!");
-			}
+//			int cmd = 0;
+//			BufferedReader br = new BufferedReader(new	InputStreamReader(System.in));
+//
+//			try {
+//				cmd = Integer.parseInt(br.readLine());
+//			} catch (NumberFormatException e) {
+//				System.out.println("please enter the number listed above!");
+//			}
+//			
+//			while (cmd != 100) {
+//				System.out.println("reenter:");
+//				try {
+//					cmd = Integer.parseInt(br.readLine());
+//				} catch (NumberFormatException e) {
+//					System.out.println("please enter the number listed above!");
+//				}
+//			}
 			
-			while (cmd != 100) {
-				System.out.println("reenter:");
-				try {
-					cmd = Integer.parseInt(br.readLine());
-				} catch (NumberFormatException e) {
-					System.out.println("please enter the number listed above!");
-				}
-			}
+			SafeKey key = new SafeKey("gunitzz");
 			
 		} catch (AmazonServiceException ase) {
 			System.out

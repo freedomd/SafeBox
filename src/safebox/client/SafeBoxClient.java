@@ -3,17 +3,16 @@ package safebox.client;
 import java.net.*;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 import java.util.Vector;
 import java.io.*;
 
-import org.aspectj.util.FileUtil;
 
 import safebox.file.SafeFile;
 
 import com.amazonaws.*;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.auth.PropertiesCredentials;
 import com.amazonaws.services.s3.*;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.PutObjectRequest;
@@ -26,7 +25,6 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 public class SafeBoxClient {
 	private Socket clientSocket;
 	private AmazonS3 fileStorage;
-	private AmazonS3 keyStorage;
 	private User user;
 	private boolean isLogin;
 	private PrintWriter outToServer;
@@ -275,7 +273,7 @@ public class SafeBoxClient {
 	}
 	
 	public void checkPath(String path) { // check each directory in path exists or not
-		Map<SafeFile, Vector<SafeFile>> m = user.getMyFile();
+		Map<String, Map<SafeFile, Vector<SafeFile>>> m = user.getFileMap();
 		String[] dirs = path.split("\\\\");
 		int len = dirs.length;
 		String parent, cp; // parent path, current path;
@@ -293,9 +291,9 @@ public class SafeBoxClient {
 			SafeFile fcp = new SafeFile(1, cp, user.getUsername()); // fake current file
 			
 			if( !m.containsKey(fcp) ) { // this path does not exist, create it
-				m.put(fcp, new Vector<SafeFile>());
+				m.get(user.getUsername()).put(fcp, new Vector<SafeFile>());
 				if( !fp.equals(fcp) ) { // does not equals to the parent, add it to the parent's vector
-					user.getMyFile().get(fp).add(fcp);
+					m.get(user.getUsername()).get(fp).add(fcp);
 				}
 			}
 			// next
@@ -334,17 +332,17 @@ public class SafeBoxClient {
 			}
 			
 			// record in user's account
-			Map<SafeFile, Vector<SafeFile>> m = user.getMyFile();
+			Map<String, Map<SafeFile, Vector<SafeFile>>> m = user.getFileMap();
 			SafeFile newSafeDir = new SafeFile(1, dirPath, user.getUsername());
 			if (!m.containsKey(newSafeDir)) {
 				// make sure to create each directory in parentPath in user's account
 				if(parentPath.length() != user.getUsername().length() + 1) {
 					checkPath(parentPath); // check parent path
 					SafeFile parentSafeDir = new SafeFile(1, parentPath, user.getUsername());
-					m.get(parentSafeDir).add(newSafeDir); // add new file to parent
+					m.get(user.getUsername()).get(parentSafeDir).add(newSafeDir); // add new file to parent
 				}				
 				// add the directory to the map
-				m.put(newSafeDir, new Vector<SafeFile>()); 
+				m.get(user.getUsername()).put(newSafeDir, new Vector<SafeFile>()); 
 				
 				System.out.println("New directory created in local successfully, " + newSafeDir.getFilePath());
 				return true;
@@ -596,19 +594,20 @@ public class SafeBoxClient {
 	 * @return true if deletion succeed, otherwise return false
 	 */
 	public boolean deleteSafeFolder(SafeFile delFolder) {
-		if (user.getMyFile().containsKey(delFolder)) {
-			for(SafeFile delFile : user.getMyFile().get(delFolder)) {
-				if (user.getMyFile().containsKey(delFile)) {
+		Map<String, Map<SafeFile, Vector<SafeFile>>> m = user.getFileMap();
+		if (m.get(user.getUsername()).containsKey(delFolder)) {
+			for(SafeFile delFile : m.get(user.getUsername()).get(delFolder)) {
+				if (m.get(user.getUsername()).containsKey(delFile)) {
 					if (delFile.getIsDir() == 1) {
 						return deleteSafeFolder(delFile);
 					} else {
-						user.getMyFile().remove(delFile);
+						m.get(user.getUsername()).remove(delFile);
 					}
 				} else { // a file that is in the delFolder, but not in the entire file map
 					return false;
 				}
 			}
-			user.getMyFile().remove(delFolder);
+			m.get(user.getUsername()).remove(delFolder);
 			return true;
 		} else {
 			System.out.println("Directory does not exist in user's account.");
@@ -649,7 +648,7 @@ public class SafeBoxClient {
 			SafeFile deleteSafeDir = new SafeFile(1, dirPath, user.getUsername());				
 			if (deleteSafeFolder(deleteSafeDir)) {				
 				SafeFile parentSafeDir = new SafeFile(1, parentPath, user.getUsername());
-				user.getMyFile().get(parentSafeDir).remove(deleteSafeDir); // delete the directory from its parent's list
+				user.getFileMap().get(user.getUsername()).get(parentSafeDir).remove(deleteSafeDir); // delete the directory from its parent's list
 				System.out.println("Directory deleted in local successfully, " + deleteSafeDir.getFilePath());
 				return true;
 			} else {
@@ -769,17 +768,17 @@ public class SafeBoxClient {
 			}
 			
 			// record in user's account
-			Map<SafeFile, Vector<SafeFile>> m = user.getMyFile();
+			Map<String, Map<SafeFile, Vector<SafeFile>>> m = user.getFileMap();
 			SafeFile newSafeFile = new SafeFile(0, filePath, user.getUsername()); // isDir, path, owner
-			if (!user.getMyFile().containsKey(newSafeFile)) {
+			if (!m.get(user.getUsername()).containsKey(newSafeFile)) {
 				// make sure to create each directory in parentPath in user's account
 				if(parentPath.length() != user.getUsername().length() + 1) {
 					checkPath(parentPath); // check parent path
 					SafeFile parentSafeDir = new SafeFile(1, parentPath, user.getUsername());
-					m.get(parentSafeDir).add(newSafeFile); // add new file to parent
+					m.get(user.getUsername()).get(parentSafeDir).add(newSafeFile); // add new file to parent
 				}				
 				// add the file to the map
-				m.put(newSafeFile, new Vector<SafeFile>()); 
+				m.get(user.getUsername()).put(newSafeFile, new Vector<SafeFile>()); 
 				
 				System.out.println("New File created in local successfully, " + newSafeFile.getFilePath());
 				return true;
@@ -987,12 +986,14 @@ public class SafeBoxClient {
 			}	
 			
 			// delete the file from user's account
+			Map<String, Map<SafeFile, Vector<SafeFile>>> m = user.getFileMap();
+			
 			SafeFile rmSafeFile = new SafeFile(0, filePath, user.getUsername());				
-			if (user.getMyFile().containsKey(rmSafeFile)) {
-				user.getMyFile().remove(rmSafeFile);
+			if (m.get(user.getUsername()).containsKey(rmSafeFile)) {
+				m.get(user.getUsername()).remove(rmSafeFile);
 				// delete the file from its parent's file list
 				SafeFile parentSafeDir = new SafeFile(1, parentPath, user.getUsername());
-				user.getMyFile().get(parentSafeDir).remove(rmSafeFile); // delete the directory from its parent's list
+				m.get(user.getUsername()).get(parentSafeDir).remove(rmSafeFile); // delete the directory from its parent's list
 				System.out.println("Directory deleted in local successfully, " + rmSafeFile.getFilePath());
 				return true;
 			} else {
@@ -1043,6 +1044,96 @@ public class SafeBoxClient {
 //			}
 		} catch (Exception e) {
 			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * Share a directory and the files contained in it to a friend
+	 */
+	public void shareDir() {
+		try {
+			String parentPath, dirName, friendName;
+			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+			System.out.println("ShareDir:\nEnter the parent path(under the root dir): ");
+			parentPath = String.format("%s\\%s", user.getUsername(), br.readLine());
+			System.out.println("Enter the directory name: ");
+			dirName = br.readLine();
+			System.out.println("Enter the friend username: ");
+			friendName = br.readLine();
+			
+			shareDirToServer(parentPath, dirName, friendName);
+
+			
+//			if (parentPath.length() == user.getUsername().length() + 1) {
+//				dirPath = parentPath + dirName;
+//			} else {
+//				dirPath = parentPath + "\\" + dirName;
+//			}
+//			System.out.println("Directory deleted successfully, " + dirPath);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * Send the share request to server
+	 * @param parentPath
+	 * @param dirName
+	 * @param friendName
+	 */
+	public void shareDirToServer(String parentPath, String dirName, String friendName) {
+		try {
+			String toServerPath;
+			if(parentPath.length() != user.getUsername().length() + 1) {
+				toServerPath = parentPath.substring(user.getUsername().length() + 1);
+			}
+			else {
+				toServerPath = null;
+			}
+			String os = String.format("%d;%s;%s;%s;%s", REMOVEFILE, user.getUsername(), toServerPath, dirName, friendName);
+			System.out.println(os);
+			outToServer.println(os);
+			outToServer.flush();
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * Helper method, add friend to the friend list of each file under parentPath.
+	 * @param safeFiles
+	 * @param parentPath
+	 * @param friendName
+	 */
+	public void shareSubFiles(Set<SafeFile> safeFiles, String parentPath, String friendName) {
+		Map<String, Map<SafeFile, Vector<SafeFile>>> m = user.getFileMap();
+		Vector<SafeFile> subs = m.get(user.getUsername()).get(parentPath);
+		
+		for(SafeFile sf : safeFiles) {
+			if (subs.contains(sf.getFilePath())) {
+				sf.getFriendList().add(friendName);
+				if (sf.getIsDir() == 1) {					
+					shareSubFiles(safeFiles, sf.getFilePath(), friendName);
+				}
+			}
+		}
+	}
+	
+	/**
+	 * The friend accepted the share request, add him/her to the friend list of this directory.
+	 * @param dirPath
+	 * @param friendName
+	 */
+	public void shareDirAccepted(String dirPath, String friendName) {
+		Map<String, Map<SafeFile, Vector<SafeFile>>> m = user.getFileMap();
+		Set<SafeFile> safeFiles = m.get(user.getUsername()).keySet();
+		
+		for(SafeFile sf : safeFiles) {
+			if (sf.getFilePath().equals(dirPath)) {
+				sf.getFriendList().add(friendName);
+				shareSubFiles(safeFiles, sf.getFilePath(), friendName);
+			} 
 		}
 	}
 	
@@ -1139,6 +1230,13 @@ public class SafeBoxClient {
 				case REMOVEFILE:
 					if(client.isLogin == true) {
 						client.removeFile();
+					} else {
+						System.out.println("The user has not logged in!");
+					}
+					break;
+				case SHAREDIR:
+					if(client.isLogin == true) {
+						client.shareDir();
 					} else {
 						System.out.println("The user has not logged in!");
 					}

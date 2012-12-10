@@ -1,10 +1,13 @@
 package safebox.file;
 
+import java.util.Vector;
+
 public class SafeFile {
 	private int isDir; // 0 for file, 1 for directory
 	private String owner;
 	private String filename;
 	private String filePath;
+	private Vector<String> friendList;
 	
 	public SafeFile(int isDir, String filePath, String owner) {
 		this.isDir = isDir;
@@ -12,6 +15,24 @@ public class SafeFile {
 		this.owner = owner;
 		String[] dirs = filePath.split("\\\\");
 		this.filename = dirs[dirs.length - 1];
+		this.friendList = new Vector<String>();
+	}
+
+	public SafeFile(SafeFile src) {
+		this.isDir = src.isDir;
+		this.owner = src.owner;
+		this.filename = src.filename;
+		this.filePath = src.filePath;
+		this.friendList = src.friendList;
+	}
+
+	
+	public void setFriendList(Vector<String> friendList) {
+		this.friendList = friendList;
+	}
+	
+	public Vector<String> getFriendList() {
+		return friendList;
 	}
 
 	/**
