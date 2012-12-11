@@ -17,16 +17,25 @@ public class User {
 	private SafeKey safeKey;
 	
 	public User(String username) {
-		this.username = username;
-		File rootDir = new File(this.username);
-		if(!rootDir.exists()) {
-		    rootDir.mkdirs();
-			System.out.println("Create root directory in local machine");
+		try {
+			this.username = username;
+			File rootDir = new File(this.username);
+			if(!rootDir.exists()) {
+			    rootDir.mkdirs();
+				System.out.println("Create root directory in local machine");
+			}
+			
+			String setupPath = this.username + "\\" + this.username + ".data";
+			File setupFile = new File(setupPath); 
+			setupFile.createNewFile();
+			System.out.println("Setup file is created successfully, " + setupPath);
+			//myFile = new ConcurrentHashMap<SafeFile, Vector<SafeFile>>();
+			//sharedFile = new ConcurrentHashMap<SafeFile, Vector<SafeFile>>();
+			fileMap = new ConcurrentHashMap<String, Map<SafeFile, Vector<SafeFile>>>();
+			fileMap.put(this.username, new ConcurrentHashMap<SafeFile, Vector<SafeFile>>());
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
-		//myFile = new ConcurrentHashMap<SafeFile, Vector<SafeFile>>();
-		//sharedFile = new ConcurrentHashMap<SafeFile, Vector<SafeFile>>();
-		fileMap = new ConcurrentHashMap<String, Map<SafeFile, Vector<SafeFile>>>();
-		fileMap.put(this.username, new ConcurrentHashMap<SafeFile, Vector<SafeFile>>());
 	}
 	
 //	/**

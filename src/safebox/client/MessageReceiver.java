@@ -50,6 +50,22 @@ public class MessageReceiver extends Thread{
 							System.out.println("Login succeed!");
 							client.setLogin(true);
 							client.setUser(temp[2]); // Once a user logged in successful, the user information will be fetched to the local machine
+							client.syncReq();
+						} else {
+							String failMessage = temp[2];
+							System.out.println(failMessage);
+						}
+						break;
+					case SYNC_RES:
+						if (result.equals("OK")) {
+							if (temp.length == 2) {
+								System.out.println("No files in the user's account, " + client.getUser().getUsername());
+							} else {
+								for(int i = 2; i < temp.length; ++i) {
+									client.sync(temp[i]);
+								}
+								System.out.println("Synchronization finished!");
+							}
 						} else {
 							String failMessage = temp[2];
 							System.out.println(failMessage);
@@ -132,8 +148,9 @@ public class MessageReceiver extends Thread{
 							friendName = temp[4];
 							mod = temp[5];
 							expo = temp[6];
-							client.shareDirAccepted(dirPath, friendName, mod, expo);
 							System.out.println("Share directory request accepted from " + friendName + ", " + dirPath);
+							client.shareDirAccepted(dirPath, friendName, mod, expo);
+							
 						} else {
 							String failMessage = temp[2];
 							System.out.println(failMessage);
@@ -148,7 +165,7 @@ public class MessageReceiver extends Thread{
 								dirPath = client.getUser().getUsername() + "\\" + temp[3];
 							}
 							friendName = temp[4];
-							//client.unshareDirAccepted(dirPath, friendName);
+							client.unshareDirAccepted(dirPath, friendName);
 							System.out.println("Unshare directory request accepted from " + friendName + ", " + dirPath);
 						} else {
 							String failMessage = temp[2];
@@ -186,6 +203,8 @@ public class MessageReceiver extends Thread{
 							System.out.println("Owner is null, illegal request!");
 						}
 						break;
+					case PUSH_PUT:
+							
 					case ACCEPT_RES:
 //						if (result.equals("OK")) {
 //							
