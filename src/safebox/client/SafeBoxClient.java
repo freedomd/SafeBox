@@ -36,6 +36,7 @@ public class SafeBoxClient {
 	private PrintWriter outToServer;
 	private Map<String, RSAPublicKey> keyMap;
 	private RSAPrivateKey privateKey;
+	private String aesFileString;
 	
 	/* client requests */
 	static final int  REGISTER = 1,		LOGIN = 2,		LOGOUT = 3, 	EXIT = 100, 
@@ -1227,6 +1228,8 @@ public class SafeBoxClient {
 	 * @param friendName
 	 */
 	public void shareDirAccepted(String dirPath, String friendName, String mod, String expo) {
+		
+		
 		Map<String, Map<SafeFile, Vector<SafeFile>>> m = user.getFileMap();
 		Set<SafeFile> safeFiles = m.get(user.getUsername()).keySet();
 		
