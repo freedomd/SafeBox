@@ -17,14 +17,14 @@ import javax.crypto.KeyGenerator;
 public class SafeKey {
 	private RSAPublicKey publicKey;
 	private RSAPrivateKey privateKey;
-	private Key desFileKey, desPKKey;
-	private String desPKString;
+	private Key aesFileKey, aesPKKey;
+	private String aesPKString;
 	
-	public SafeKey(String desPKString) throws InvalidKeySpecException {
-		this.desPKString = desPKString;
+	public SafeKey(String aesPKString) throws InvalidKeySpecException {
+		this.aesPKString = aesPKString;
 		genRSAKeys();
 		genDESFileKey();
-		genDESPKKey(this.desPKString);
+		genDESPKKey(this.aesPKString);
 	}
 
 	public RSAPublicKey getPublicKey() {
@@ -35,12 +35,12 @@ public class SafeKey {
 		return privateKey;
 	}
 
-	public Key getDesFileKey() {
-		return desFileKey;
+	public Key getAesFileKey() {
+		return aesFileKey;
 	}
 
-	public Key getDesPKKey() {
-		return desPKKey;
+	public Key getAesPKKey() {
+		return aesPKKey;
 	}
 
 	/**
@@ -84,7 +84,7 @@ public class SafeKey {
 	}
 	
 	/**
-	 * Generate the DES file key for encrypting files
+	 * Generate the AES file key for encrypting files
 	 */
 	private void genDESFileKey() {
 		try {
@@ -95,15 +95,15 @@ public class SafeKey {
 			random.setSeed(seed.getBytes());			
 			keygen.init(random);
 			
-			desFileKey = keygen.generateKey();
-			System.out.println("DES file key: " + desFileKey);
+			aesFileKey = keygen.generateKey();
+			System.out.println("AES file key: " + aesFileKey);
 		} catch (Exception e) {
 			System.out.println("Failed to generate DES key for encrypting files!\n" + e.toString());
 		}
 	}
 	
 	/**
-	 * Generate the DES key for encrypting RSA private key
+	 * Generate the AES key for encrypting RSA private key
 	 * @param strKey
 	 */
 	private void genDESPKKey(String strKey) {
@@ -113,8 +113,8 @@ public class SafeKey {
 			SecureRandom random = new SecureRandom(strKey.getBytes());		
 			keygen.init(random);
 			
-			desPKKey = keygen.generateKey();
-			System.out.println("DES pk key: " + desPKKey);
+			aesPKKey = keygen.generateKey();
+			System.out.println("AES pk key: " + aesPKKey);
 			
 		} catch (Exception e) {
 			System.out.println("Failed to generate DES key for encrypting files!\n" + e.toString());

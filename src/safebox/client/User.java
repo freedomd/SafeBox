@@ -14,6 +14,7 @@ public class User {
 	//private Map<SafeFile, Vector<SafeFile>> myFile;
 	//private Map<SafeFile, Vector<SafeFile>> sharedFile;
 	private Map<String, Map<SafeFile, Vector<SafeFile>>> fileMap;  // owner ; directory structure
+	private SafeKey safeKey;
 	
 	public User(String username) {
 		this.username = username;
@@ -25,6 +26,7 @@ public class User {
 		//myFile = new ConcurrentHashMap<SafeFile, Vector<SafeFile>>();
 		//sharedFile = new ConcurrentHashMap<SafeFile, Vector<SafeFile>>();
 		fileMap = new ConcurrentHashMap<String, Map<SafeFile, Vector<SafeFile>>>();
+		fileMap.put(this.username, new ConcurrentHashMap<SafeFile, Vector<SafeFile>>());
 	}
 	
 //	/**

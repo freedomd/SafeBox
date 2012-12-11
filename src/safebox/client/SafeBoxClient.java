@@ -1,10 +1,12 @@
 package safebox.client;
 
 import java.net.*;
+import java.security.interfaces.RSAPublicKey;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
+import java.util.concurrent.ConcurrentHashMap;
 import java.io.*;
 
 
@@ -28,6 +30,7 @@ public class SafeBoxClient {
 	private User user;
 	private boolean isLogin;
 	private PrintWriter outToServer;
+	private Map<String, RSAPublicKey> keyMap;
 	//private BufferedReader inFromServer;
 	
 	/* client requests */
@@ -57,6 +60,7 @@ public class SafeBoxClient {
 			//inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 			AWSCredentials c = new BasicAWSCredentials("AKIAIXKDAUTHKZNTDMFA", "XixuCVDrlemEH9SE3aPCVRym5V8CgXpp9y+nHRrQ");
 			fileStorage = new AmazonS3Client(c);
+			keyMap = new ConcurrentHashMap<String, RSAPublicKey>();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -118,25 +122,6 @@ public class SafeBoxClient {
 			System.out.println(os);
 			outToServer.println(os);
 			outToServer.flush();
-			
-//			String[] temp = inFromServer.readLine().split(";");
-//			int methodID = Integer.parseInt(temp[0]);
-//			if (methodID == REGISTER_RES) {
-//				String result = temp[1];
-//				System.out.println(result);
-//				if (result.equals("OK")) {
-//					System.out.println("Register succeed! Logged in!");
-//					user = new User(username); // Once a user logged in successful, the user information will be fetched to the local machine
-//					return true;
-//				} else {
-//					String failMessage = temp[2];
-//					System.out.println(failMessage);
-//					return false;
-//				}
-//			} else {
-//				System.out.println("Communication message error!");
-//				return false;
-//			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -178,23 +163,6 @@ public class SafeBoxClient {
 			outToServer.println(os);
 			outToServer.flush();
 
-//			String[] temp = inFromServer.readLine().split(";");
-//			int methodID = Integer.parseInt(temp[0]);
-//			if (methodID == LOGIN_RES) {
-//				String result = temp[1];
-//				if (result.equals("OK")) {
-//					System.out.println("Login succeed!");
-//					user = new User(username); // Once a user logged in successful, the user information will be fetched to the local machine
-//					return true;
-//				} else {
-//					String failMessage = temp[2];
-//					System.out.println(failMessage);
-//					return false;
-//				}
-//			} else {
-//				System.out.println("Communication message error!");
-//				return false;
-//			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -216,23 +184,6 @@ public class SafeBoxClient {
 			outToServer.println(os);
 			outToServer.flush();
 
-//			String[] temp = inFromServer.readLine().split(";");
-//			int methodID = Integer.parseInt(temp[0]);
-//			if (methodID == LOGOUT_RES) {
-//				String result = temp[1];
-//				if (result.equals("OK")) {
-//					System.out.println("Logout succeed!");
-//					user = null;
-//					return true;
-//				} else {
-//					String failMessage = temp[2];
-//					System.out.println(failMessage);
-//					return false;
-//				}
-//			} else {
-//				System.out.println("Communication message error!");
-//				return false;
-//			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -259,14 +210,6 @@ public class SafeBoxClient {
 				return;
 			}
 			createDirToServer(parentPath, dirName);
-
-			
-//			if (parentPath.length() == user.getUsername().length() + 1) {
-//				dirPath = parentPath + dirName;
-//			} else {
-//				dirPath = parentPath + "\\" + dirName;
-//			}
-//			System.out.println("New directory created successfully, " + dirPath);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -282,11 +225,11 @@ public class SafeBoxClient {
 			cp = path;
 			len = 1;
 		} else {
-			parent = dirs[1]; 
-			cp = dirs[1]; // current path
+			parent = dirs[0] + "\\" + dirs[1]; 
+			cp = dirs[0] + "\\" + dirs[1];  // current path
 		}
 		
-		for(int i = 0; i < len; i++) { // check ancestors
+		for(int i = 1; i < len; i++) { // check ancestors
 			SafeFile fp = new SafeFile(1, parent, user.getUsername()); // fake parent
 			SafeFile fcp = new SafeFile(1, cp, user.getUsername()); // fake current file
 			
@@ -361,18 +304,20 @@ public class SafeBoxClient {
 
 		String[] dirs = path.split("\\\\");
 		int len = dirs.length;
-		String cp; // parent path, current path;
+		String cp, fileName; // current path, fileName;
 		if(len == 0) {
 			cp = path;
+			fileName = path;
 			len = 1;
 		} else {
 			cp = dirs[1]; // current path
+			fileName = dirs[1];
 		}
 		
 		//String username = user.getUsername();
 		
-		for(int i = 0; i < len; i++) { // check ancestors
-			String setupPath = dirs[0] + "\\" + cp + ".data";
+		for(int i = 1; i < len; i++) { // check ancestors
+			String setupPath = dirs[0] + "\\" + cp + "\\" + fileName +".data";
 			File setupFile = new File(setupPath); 
 			setupFile.createNewFile();
 			System.out.println("Setup file is created successfully, " + setupPath);
@@ -386,6 +331,7 @@ public class SafeBoxClient {
 			// next
 			if(i + 1 < len) {
 				cp = String.format("%s\\%s", cp, dirs[i + 1]);
+				fileName = dirs[i + 1];
 			}
 		}
 		} catch (Exception e) {
@@ -467,22 +413,6 @@ public class SafeBoxClient {
 			outToServer.println(os);
 			outToServer.flush();
 
-//			String[] temp = inFromServer.readLine().split(";");
-//			int methodID = Integer.parseInt(temp[0]);
-//			if (methodID == CREATEDIR_RES) {
-//				String result = temp[1];
-//				if (result.equals("OK")) {
-//					System.out.println("Creating directory to server succeed, " + dirPath);
-//					return true;
-//				} else {
-//					String failMessage = temp[2];
-//					System.out.println(failMessage);
-//					return false;
-//				}
-//			} else {
-//				System.out.println("Communication message error!");
-//				return false;
-//			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -509,14 +439,6 @@ public class SafeBoxClient {
 				return;
 			}
 			deleteDirFromServer(parentPath, dirName);
-
-			
-//			if (parentPath.length() == user.getUsername().length() + 1) {
-//				dirPath = parentPath + dirName;
-//			} else {
-//				dirPath = parentPath + "\\" + dirName;
-//			}
-//			System.out.println("Directory deleted successfully, " + dirPath);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -647,8 +569,10 @@ public class SafeBoxClient {
 			// delete the directory and all files contained in it from user's account
 			SafeFile deleteSafeDir = new SafeFile(1, dirPath, user.getUsername());				
 			if (deleteSafeFolder(deleteSafeDir)) {				
-				SafeFile parentSafeDir = new SafeFile(1, parentPath, user.getUsername());
-				user.getFileMap().get(user.getUsername()).get(parentSafeDir).remove(deleteSafeDir); // delete the directory from its parent's list
+				if (parentPath.length() != user.getUsername().length() + 1) {
+					SafeFile parentSafeDir = new SafeFile(1, parentPath, user.getUsername());
+					user.getFileMap().get(user.getUsername()).get(parentSafeDir).remove(deleteSafeDir); // delete the directory from its parent's list
+				}
 				System.out.println("Directory deleted in local successfully, " + deleteSafeDir.getFilePath());
 				return true;
 			} else {
@@ -860,22 +784,6 @@ public class SafeBoxClient {
 			outToServer.println(os);
 			outToServer.flush();
 
-//			String[] temp = inFromServer.readLine().split(";");
-//			int methodID = Integer.parseInt(temp[0]);
-//			if (methodID == PUTFILE_RES) {
-//				String result = temp[1];
-//				if (result.equals("OK")) {
-//					System.out.println("Creating file to server succeed, " + filePath);
-//					return true;
-//				} else {
-//					String failMessage = temp[2];
-//					System.out.println(failMessage);
-//					return false;
-//				}
-//			} else {
-//				System.out.println("Communication message error!");
-//				return false;
-//			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -902,14 +810,6 @@ public class SafeBoxClient {
 				return;
 			}
 			removeFileFromServer(parentPath, fileName);
-			
-//			if (parentPath.length() == user.getUsername().length() + 1) {
-//				filePath = parentPath + fileName;
-//			} else {
-//				filePath = parentPath + "\\" + fileName;
-//			}
-//			System.out.println("File deleted successfully, " + filePath);
-//			return;
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -991,9 +891,11 @@ public class SafeBoxClient {
 			SafeFile rmSafeFile = new SafeFile(0, filePath, user.getUsername());				
 			if (m.get(user.getUsername()).containsKey(rmSafeFile)) {
 				m.get(user.getUsername()).remove(rmSafeFile);
-				// delete the file from its parent's file list
-				SafeFile parentSafeDir = new SafeFile(1, parentPath, user.getUsername());
-				m.get(user.getUsername()).get(parentSafeDir).remove(rmSafeFile); // delete the directory from its parent's list
+				if (parentPath.length() != user.getUsername().length() + 1) {
+					// delete the file from its parent's file list
+					SafeFile parentSafeDir = new SafeFile(1, parentPath, user.getUsername());
+					m.get(user.getUsername()).get(parentSafeDir).remove(rmSafeFile); // delete the directory from its parent's list
+				}
 				System.out.println("Directory deleted in local successfully, " + rmSafeFile.getFilePath());
 				return true;
 			} else {
@@ -1026,22 +928,6 @@ public class SafeBoxClient {
 			outToServer.println(os);
 			outToServer.flush();
 
-//			String[] temp = inFromServer.readLine().split(";");
-//			int methodID = Integer.parseInt(temp[0]);
-//			if (methodID == REMOVEFILE_RES) {
-//				String result = temp[1];
-//				if (result.equals("OK")) {
-//					System.out.println("Deleting file from server succeed, " + filePath);
-//					return true;
-//				} else {
-//					String failMessage = temp[2];
-//					System.out.println(failMessage);
-//					return false;
-//				}
-//			} else {
-//				System.out.println("Communication message error!");
-//				return false;
-//			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -1061,15 +947,22 @@ public class SafeBoxClient {
 			System.out.println("Enter the friend username: ");
 			friendName = br.readLine();
 			
+			// check if the directory exists on local machine
+			String dirPath;
+			if (parentPath.length() == user.getUsername().length() + 1) {
+				dirPath = parentPath + dirName;
+			} else {
+				dirPath = parentPath + "\\" + dirName;
+			}
+			File shareDir = new File(dirPath);
+			if (!shareDir.exists()) {
+				System.out.println("Directory does not exist in local, " + dirPath);
+				return;
+			}
+			
+			// exist, send request to server
 			shareDirToServer(parentPath, dirName, friendName);
 
-			
-//			if (parentPath.length() == user.getUsername().length() + 1) {
-//				dirPath = parentPath + dirName;
-//			} else {
-//				dirPath = parentPath + "\\" + dirName;
-//			}
-//			System.out.println("Directory deleted successfully, " + dirPath);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -1090,7 +983,7 @@ public class SafeBoxClient {
 			else {
 				toServerPath = null;
 			}
-			String os = String.format("%d;%s;%s;%s;%s", REMOVEFILE, user.getUsername(), toServerPath, dirName, friendName);
+			String os = String.format("%d;%s;%s;%s;%s", SHAREDIR, user.getUsername(), toServerPath, dirName, friendName);
 			System.out.println(os);
 			outToServer.println(os);
 			outToServer.flush();
@@ -1099,6 +992,111 @@ public class SafeBoxClient {
 			e.printStackTrace();
 		}
 	}
+	
+	public void unshareDir() {
+		try {
+			String parentPath, dirName, friendName;
+			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+			System.out.println("UnshareDir:\nEnter the parent path(under the root dir): ");
+			parentPath = String.format("%s\\%s", user.getUsername(), br.readLine());
+			System.out.println("Enter the directory name: ");
+			dirName = br.readLine();
+			System.out.println("Enter the friend username: ");
+			friendName = br.readLine();
+			
+			// check if the directory exists on local machine
+			String dirPath;
+			if (parentPath.length() == user.getUsername().length() + 1) {
+				dirPath = parentPath + dirName;
+			} else {
+				dirPath = parentPath + "\\" + dirName;
+			}
+			File shareDir = new File(dirPath);
+			if (!shareDir.exists()) {
+				System.out.println("Directory does not exist in local, " + dirPath);
+				return;
+			}
+			
+			// exist, send request to server
+			unshareDirToServer(parentPath, dirName, friendName);
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * Send the share request to server
+	 * @param parentPath
+	 * @param dirName
+	 * @param friendName
+	 */
+	public void unshareDirToServer(String parentPath, String dirName, String friendName) {
+		try {
+			String toServerPath;
+			if(parentPath.length() != user.getUsername().length() + 1) {
+				toServerPath = parentPath.substring(user.getUsername().length() + 1);
+			}
+			else {
+				toServerPath = null;
+			}
+			String os = String.format("%d;%s;%s;%s;%s", UNSHAREDIR, user.getUsername(), toServerPath, dirName, friendName);
+			System.out.println(os);
+			outToServer.println(os);
+			outToServer.flush();
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+//	public void shareDirChoice(String ownerName, String parentPath, String dirName) {
+//		try {
+//			String choice;
+//			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+//			System.out.println("ShareDir_Request:\n1. Accept\n2. Reject");
+//			
+//			choice = br.readLine();
+//			while (!choice.equals("1") && !choice.equals("2")) {
+//				if (choice.equals("1")) {
+//					accept(ownerName, parentPath, dirName);
+//				} else if (choice.equals("2")) {
+//					reject(ownerName, parentPath, dirName);
+//				} else {
+//					System.out.println("Illegal choice, please enter 1 or 2!");
+//					choice = br.readLine();
+//				}
+//			}
+//
+//		} catch (Exception e) {
+//			e.printStackTrace();
+//		}
+//	}
+//	
+//	public void accept(String ownerName, String parentPath, String dirName) {
+//		try {
+//			String os = String.format("%d;%s;%s;%s;%s", ACCEPT, user.getUsername(), parentPath, dirName, ownerName);
+//			System.out.println(os);
+//			outToServer.println(os);
+//			outToServer.flush();
+//
+//		} catch (Exception e) {
+//			e.printStackTrace();
+//		}
+//	}
+//	
+//	public void reject(String ownerName, String parentPath, String dirName) {
+//		try {
+//			String os = String.format("%d;%s;%s;%s;%s", REJECT, user.getUsername(), parentPath, dirName, ownerName);
+//			System.out.println(os);
+//			outToServer.println(os);
+//			outToServer.flush();
+//
+//		} catch (Exception e) {
+//			e.printStackTrace();
+//		}
+//	}
+	
 	
 	/**
 	 * Helper method, add friend to the friend list of each file under parentPath.
@@ -1125,7 +1123,7 @@ public class SafeBoxClient {
 	 * @param dirPath
 	 * @param friendName
 	 */
-	public void shareDirAccepted(String dirPath, String friendName) {
+	public void shareDirAccepted(String dirPath, String friendName, String mod, String expo) {
 		Map<String, Map<SafeFile, Vector<SafeFile>>> m = user.getFileMap();
 		Set<SafeFile> safeFiles = m.get(user.getUsername()).keySet();
 		
@@ -1135,6 +1133,8 @@ public class SafeBoxClient {
 				shareSubFiles(safeFiles, sf.getFilePath(), friendName);
 			} 
 		}
+		
+		//createShareAESKey(String friendName, String mod, String expo);
 	}
 	
 	/**
@@ -1241,6 +1241,13 @@ public class SafeBoxClient {
 						System.out.println("The user has not logged in!");
 					}
 					break;
+				case UNSHAREDIR:
+					if(client.isLogin == true) {
+						client.unshareDir();
+					} else {
+						System.out.println("The user has not logged in!");
+					}
+					break;
 				default:
 					break;
 			}
@@ -1252,6 +1259,7 @@ public class SafeBoxClient {
 			try {
 				cmd = Integer.parseInt(br.readLine());
 			} catch (NumberFormatException e) {
+				cmd = 0;
 				System.out.println("please enter the number listed above!");
 			}
 		}

@@ -59,6 +59,7 @@ public class MessageReceiver extends Thread{
 						if (result.equals("OK")) {
 							System.out.println("Logout succeed!");
 							client.clearUser();
+							client.setLogin(false);
 						} else {
 							String failMessage = temp[2];
 							System.out.println(failMessage);
@@ -120,16 +121,18 @@ public class MessageReceiver extends Thread{
 							System.out.println(failMessage);
 						}
 						break;
-					case SHAREDIR_RES:
+					case SHAREDIR_RES: // method_id; OK; parentPath; dirName; friendName; mod; expo;
 						if (result.equals("OK")) {
-							String dirPath, friendName;
+							String dirPath, friendName, mod, expo;
 							if (!temp[2].equals("null")) {
 								dirPath = client.getUser().getUsername() + "\\" + temp[2] + "\\" + temp[3]; // path: username\parentPath\dirName
 							} else {
 								dirPath = client.getUser().getUsername() + "\\" + temp[3];
 							}
 							friendName = temp[4];
-							client.shareDirAccepted(dirPath, friendName);
+							mod = temp[5];
+							expo = temp[6];
+							client.shareDirAccepted(dirPath, friendName, mod, expo);
 							System.out.println("Share directory request accepted from " + friendName + ", " + dirPath);
 						} else {
 							String failMessage = temp[2];
@@ -154,14 +157,17 @@ public class MessageReceiver extends Thread{
 						break;
 					case SHAREDIR_REQ:
 						if (!temp[1].equals("null")) { // owner is not null
-							String ownerName, dirPath;
-							if (!temp[2].equals("null")) {
-								dirPath = temp[1] + "\\" + temp[2] + "\\" + temp[3]; // path: username\parentPath\dirName
+							String ownerName, parentPath, dirName, dirPath;
+							ownerName = temp[1];
+							parentPath = temp[2];
+							dirName = temp[3];
+							if (!parentPath.equals("null")) {
+								dirPath = ownerName + "\\" + parentPath + "\\" + dirName; // path: username\parentPath\dirName
 							} else {
-								dirPath = temp[1] + "\\" + temp[3];
+								dirPath = parentPath + "\\" + dirName;
 							}
-							//client.shareDirReq(ownerName, dirPath);
-							//System.out.println("Share directory request from " + ownerName + ", " + dirPath);
+							System.out.println("Share directory request from " + ownerName + ", " + dirPath);
+							//client.shareDirChoice(ownerName, parentPath, dirName);
 						} else {
 							System.out.println("Owner is null, illegal request!");
 						}
@@ -181,33 +187,22 @@ public class MessageReceiver extends Thread{
 						}
 						break;
 					case ACCEPT_RES:
-						if (result.equals("OK")) {
-							String ownerName, dirPath;
-							if (!temp[2].equals("null")) {
-								dirPath = temp[1] + "\\" + temp[2] + "\\" + temp[3]; // path: username\parentPath\dirName
-							} else {
-								dirPath = temp[1] + "\\" + temp[3];
-							}
-							//client.getSharedDir(ownerName, dirPath);
-							//System.out.println("Accepted share directory request from " + ownerName + " successfully, " + dirPath);
-						} else {
-							String failMessage = temp[2];
-							System.out.println(failMessage);
-						}
+//						if (result.equals("OK")) {
+//							
+//							//client.getSharedDir(ownerName, dirPath);
+//							System.out.println("Accept response! Waiting for the AES key from owner!");
+//						} else {
+//							String failMessage = temp[2];
+//							System.out.println(failMessage);
+//						}
 						break;
 					case REJECT_RES:
-						if (result.equals("OK")) {
-							String ownerName, dirPath;
-							if (!temp[2].equals("null")) {
-								dirPath = temp[1] + "\\" + temp[2] + "\\" + temp[3]; // path: username\parentPath\dirName
-							} else {
-								dirPath = temp[1] + "\\" + temp[3];
-							}
-							//System.out.println("Rejected share directory request from " + ownerName + " successfully, " + dirPath);
-						} else {
-							String failMessage = temp[2];
-							System.out.println(failMessage);
-						}
+//						if (result.equals("OK")) {
+//							System.out.println("Reject response! Waiting for the AES key from owner!");
+//						} else {
+//							String failMessage = temp[2];
+//							System.out.println(failMessage);
+//						}
 						break;
 					default:
 						break;
@@ -215,6 +210,7 @@ public class MessageReceiver extends Thread{
 				
 			} catch (Exception e) {
 				e.printStackTrace();
+				System.exit(-1);
 			}
 			
 		}
