@@ -4,6 +4,7 @@
 package safebox.server;
 
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -20,6 +21,7 @@ public class UserInfo {
 		this.username = username;
 		this.password = password;
 		this.socket = socket;
+		this.requests = new ArrayList<String>();
 	}
 	
 	public String getUsername() {
@@ -48,8 +50,6 @@ public class UserInfo {
 	}
 	
 	public void clearRequestsList(){
-		if( this.requests != null ) {
-			this.requests.clear();
-		}
+		this.requests.clear();
 	}
 }

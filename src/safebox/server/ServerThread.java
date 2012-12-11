@@ -81,7 +81,7 @@ public class ServerThread extends Thread {
 		if( userMap.authenticate(fields[1], fields[2]) ) { // success
 			// update socket
 			if( userMap.updateSocket(fields[1], this.socket) ) {
-				response = String.format("%d;OK;", LOGIN_RES); 
+				response = String.format("%d;OK;%s;", LOGIN_RES, fields[1]); 
 				List<String> requests = userMap.getUserInfo(fields[1]).getUnhandledRequests(); // get requests
 				if(requests != null) {
 					Iterator<String> rit = requests.iterator();
@@ -146,7 +146,7 @@ public class ServerThread extends Thread {
 				// initialize in UserFileMap after success
 				UserFileMap ufm = new UserFileMap(fields[1]);
 				globalMap.put(fields[1], ufm);
-				response = String.format("%d;OK;", REGISTER_RES); 
+				response = String.format("%d;OK;%s;", REGISTER_RES, fields[1]); 
 			}
 		} else { // fail
 			response = String.format("%d;FAIL;Username %s Already Exists;", REGISTER_RES, fields[1]); 
@@ -229,12 +229,21 @@ public class ServerThread extends Thread {
 		return response;
 	}
 	
-	public String shareDirRequest(String [] fields) { 
+	public String shareDirRequest(String [] fields) {  // owner name, parent path, filename, friend name
 		String response;
 		UserInfo user = userMap.getUserInfo(fields[1]); // get user info
-		UserInfo friend = userMap.getUserInfo(fields[2]); // get share friend info
+		UserInfo friend = userMap.getUserInfo(fields[4]); // get share friend info
 		if( user != null && friend != null ) {
-			String request = String.format("%d;%s;%s;%s;", SHAREDIR_REQ, fields[1], fields[3], fields[4]); // type, owner name, parent path, filename,
+			String request = String.format("%d;%s;%s;%s;", SHAREDIR_REQ, fields[1], fields[2], fields[3]); // type, owner name, parent path, filename,
+			
+			// add share structure info
+			String message = globalMap.get(fields[4]).addNewFile(DIR, fields[2], fields[3], fields[1]); // type, parent path, filename, owner name
+			message = globalMap.get(fields[1]).addShareInfo(fields[2], fields[3], fields[1]); // parent path, filename, share friend name
+			if(message != null) {
+				response = String.format("%d;FAIL;%s;", ACCEPT_RES, message); 
+				return response;
+			}
+			
 			Socket friendSocket = friend.getSocket();
 			if(friendSocket == null) { // user is logout
 				friend.addRequest(request); // add this request to wait list		
@@ -245,30 +254,32 @@ public class ServerThread extends Thread {
 					toFriend.println(request); // send request to friend
 					toFriend.flush(); 
 				}  catch (IOException e) {
-					response = String.format("%d;FAIL;Cannot send request to user %s;", SHAREDIR_REQ_RES, fields[2]);
+					response = String.format("%d;FAIL;Cannot send request to user %s;", SHAREDIR_RES, fields[4]);
 					return response;
 				}
 			}
-			response = String.format("%d;OK;", SHAREDIR_REQ_RES, fields[1]); 
+			response = String.format("%d;OK;%s;%s;%s;mod;exp;", SHAREDIR_RES, fields[2], fields[3], fields[4]); 
 		} else {
 			if(user == null) {
-				response = String.format("%d;FAIL;No such user %s exists;", SHAREDIR_REQ_RES, fields[1]); 
+				response = String.format("%d;FAIL;No such user %s exists;", SHAREDIR_RES, fields[1]); 
 			} else {
-				response = String.format("%d;FAIL;No such user %s exists;", SHAREDIR_REQ_RES, fields[2]);
+				response = String.format("%d;FAIL;No such user %s exists;", SHAREDIR_RES, fields[4]);
 			}
 		}
 		return response;
 	}
 	
-	public String accept(String[] fields) { // accept share directory, add structure to map
+/****
+	public String accept(String[] fields) { // accept share directory, add structure to map; username, parent path, filename, owner name
 		String response;
 		UserInfo user = userMap.getUserInfo(fields[1]); // get user info
-		UserInfo owner = userMap.getUserInfo(fields[2]); // get owner info
+		UserInfo owner = userMap.getUserInfo(fields[4]); // get owner info
 		if( user != null && owner != null ) {
-			String res = String.format("%d;OK;%s;%s;%s;", SHAREDIR_RES, fields[1], fields[3], fields[4]); // type, friend name, parent path, filename
+			String res = String.format("%d;OK;%s;%s;%s;", SHAREDIR_RES, fields[1], fields[2], fields[3]); // type, friend name, parent path, filename
 			
 			// add share structure info
-			String message = globalMap.get(fields[1]).addNewFile(DIR, fields[3], fields[4], fields[2]); // type, parent path, filename, owner name
+			String message = globalMap.get(fields[1]).addNewFile(DIR, fields[2], fields[3], fields[4]); // type, parent path, filename, owner name
+			message = globalMap.get(fields[4]).addShareInfo(fields[2], fields[3], fields[1]); // parent path, filename, share friend name
 			if(message != null) {
 				response = String.format("%d;FAIL;%s;", ACCEPT_RES, message); 
 				return response;
@@ -293,7 +304,7 @@ public class ServerThread extends Thread {
 			if(user == null) {
 				response = String.format("%d;FAIL;No such user %s exists;", ACCEPT_RES, fields[1]); 
 			} else {
-				response = String.format("%d;FAIL;No such user %s exists;", ACCEPT_RES, fields[2]);
+				response = String.format("%d;FAIL;No such user %s exists;", ACCEPT_RES, fields[4]);
 			}
 		}
 		return response;
@@ -302,9 +313,9 @@ public class ServerThread extends Thread {
 	public String reject(String[] fields) { // reject share directory
 		String response;
 		UserInfo user = userMap.getUserInfo(fields[1]); // get user info
-		UserInfo owner = userMap.getUserInfo(fields[2]); // get owner info
+		UserInfo owner = userMap.getUserInfo(fields[4]); // get owner info
 		if( user != null && owner != null ) {
-			String res = String.format("%d;FAIL;%s;%s;%s;", SHAREDIR_RES, fields[1], fields[3], fields[4]); // type, friend name, parent path, filename
+			String res = String.format("%d;FAIL;%s;%s;%s;", SHAREDIR_RES, fields[1], fields[2], fields[3]); // type, friend name, parent path, filename
 			
 			Socket ownerSocket = owner.getSocket();
 			if(ownerSocket == null) { // user is logout
@@ -316,7 +327,7 @@ public class ServerThread extends Thread {
 					toOwner.println(res); // send request to friend
 					toOwner.flush(); 
 				}  catch (IOException e) {
-					response = String.format("%d;FAIL;Cannot send response to owner %s;",REJECT_RES, fields[2]);
+					response = String.format("%d;FAIL;Cannot send response to owner %s;",REJECT_RES, fields[4]);
 					return response;
 				}
 			}
@@ -325,23 +336,25 @@ public class ServerThread extends Thread {
 			if(user == null) {
 				response = String.format("%d;FAIL;No such user %s exists;", REJECT_RES, fields[1]); 
 			} else {
-				response = String.format("%d;FAIL;No such user %s exists;", REJECT_RES, fields[2]);
+				response = String.format("%d;FAIL;No such user %s exists;", REJECT_RES, fields[4]);
 			}
 		}
 		return response;
 	}
-	
+
+****/
 	
 	public String unshareDir(String [] fields) { 
 		String response;
 		UserInfo user = userMap.getUserInfo(fields[1]); // get user info
-		UserInfo friend = userMap.getUserInfo(fields[2]); // get share friend info
+		UserInfo friend = userMap.getUserInfo(fields[4]); // get share friend info
 		if( user != null && friend != null ) {
-			String notification = String.format("%d;%s;%s;%s;", UNSHAREDIR_NOTI, fields[1], fields[3], fields[4]); // type, owner name, parent path, filename,
+			String notification = String.format("%d;%s;%s;%s;", UNSHAREDIR_NOTI, fields[1], fields[2], fields[3]); // type, owner name, parent path, filename,
 			Socket friendSocket = friend.getSocket();
 			
 			// delete share structure info
-			String message = globalMap.get(fields[2]).deleteFile(DIR, fields[3], fields[4], fields[1]); // parent path, filename, owner name
+			String message = globalMap.get(fields[4]).deleteFile(DIR, fields[2], fields[3], fields[1]); // parent path, filename, owner name
+			message = globalMap.get(fields[1]).deleteShareInfo(fields[2], fields[3], fields[4]);
 			if(message != null) {
 				response = String.format("%d;FAIL;%s;", UNSHAREDIR_RES, message); 
 				return response;
@@ -356,7 +369,7 @@ public class ServerThread extends Thread {
 					toFriend.println(notification); // send request to friend
 					toFriend.flush(); 
 				}  catch (IOException e) {
-					response = String.format("%d;OK;Cannot send notification to user %s;", UNSHAREDIR_RES, fields[2]);
+					response = String.format("%d;OK;Cannot send notification to user %s;", UNSHAREDIR_RES, fields[4]);
 					return response;
 				}
 			}
@@ -365,11 +378,13 @@ public class ServerThread extends Thread {
 			if(user == null) {
 				response = String.format("%d;FAIL;No such user %s exists;", UNSHAREDIR_RES, fields[1]); 
 			} else {
-				response = String.format("%d;FAIL;No such user %s exists;", UNSHAREDIR_RES, fields[2]);
+				response = String.format("%d;FAIL;No such user %s exists;", UNSHAREDIR_RES, fields[4]);
 			}
 		}
 		return response;
 	}
+	
+	//public String sync(fields)
 	
 	
 	public void run() {
@@ -414,11 +429,16 @@ public class ServerThread extends Thread {
 				   case UNSHAREDIR:
 					   response = unshareDir(fields);
 					   break;
+				   /***
 				   case ACCEPT:
 					   response = accept(fields);
 					   break;
 				   case REJECT:
 					   response = reject(fields);
+					   break;
+				   ***/
+				   case SYNC:
+					  // response = sync(fields);
 					   break;
 				   case EXIT:
 					   running = false;

@@ -34,6 +34,14 @@ public class SafeFile {
 	public Vector<String> getFriendList() {
 		return friendList;
 	}
+	
+	public void addFriend(String friend) {
+		friendList.add(friend);
+	}
+	
+	public void deleteFriend(String friend) {
+		friendList.remove(friend);
+	}
 
 	/**
 	 * @return the isDir
