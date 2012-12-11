@@ -29,6 +29,16 @@ public class UserFileMap {
 		fileMap.put(this.username, new ConcurrentHashMap<SafeFile, Vector<SafeFile>>()); // own directory structure
 	}
 	
+	public Map<String, Map<SafeFile, Vector<SafeFile>>> getFileMap() {
+		return fileMap;
+	}
+	
+	
+	/**
+	 * Check the path, create un-existed directories
+	 * @param path
+	 * @param owner
+	 */
 	public void checkPath(String path, String owner) { // check each directory in path exists or not
 		Map<SafeFile, Vector<SafeFile>> m = fileMap.get(owner);
 		String[] dirs = path.split("\\\\");
@@ -62,6 +72,15 @@ public class UserFileMap {
 		return ;
 	}
 	
+	
+	/**
+	 * Add a new file into map
+	 * @param filetype
+	 * @param parentPath
+	 * @param filename
+	 * @param owner
+	 * @return error message
+	 */
 	public String addNewFile(int filetype, String parentPath, String filename, String owner) {
 		Map<SafeFile, Vector<SafeFile>> m;
 		
@@ -86,6 +105,19 @@ public class UserFileMap {
 			if(!parentPath.equals("null")){  // parent exists
 				checkPath(parentPath, owner); // check parent path
 				SafeFile fp = new SafeFile(DIR, parentPath, owner);
+				
+				// get parent friend list
+				Set<SafeFile> s = m.keySet();
+				Vector<String> friendList = new Vector<String>(); 
+				
+				for(SafeFile f : s) {
+					if(f.getFilePath().equals(parentPath)) {
+						friendList = f.getFriendList();
+						break;
+					}
+				}
+				
+				newFile.setFriendList(friendList); // set friend list as the same as its parent
 				m.get(fp).add(newFile); // add new file to parent
 			}
 			m.put(newFile, new Vector<SafeFile>());
@@ -95,6 +127,15 @@ public class UserFileMap {
 		return null;
 	}
 	
+	
+	/**
+	 * Delete a file from map
+	 * @param filetype
+	 * @param parentPath
+	 * @param filename
+	 * @param owner
+	 * @return error message
+	 */
 	public String deleteFile(int filetype, String parentPath, String filename, String owner) {
 		Map<SafeFile, Vector<SafeFile>> m = fileMap.get(owner);
 		String message = null;
@@ -132,6 +173,57 @@ public class UserFileMap {
 		return message;
 	}
 	
+	
+	/**
+	 * Add share directory structure into friend's map
+	 * @param parentPath
+	 * @param filename
+	 * @param um
+	 * @param owner
+	 * @return
+	 */
+	public String addShareFile(String parentPath, String filename, Map<SafeFile, Vector<SafeFile>> um, String owner) {
+		Map<SafeFile, Vector<SafeFile>> m;
+		
+		if(fileMap.containsKey(owner)) {
+			m = fileMap.get(owner);
+		} else { // create new for shares 
+			m = new ConcurrentHashMap<SafeFile, Vector<SafeFile>>();
+			fileMap.put(owner, m); 
+		}
+		
+		String filepath;
+		
+		if(parentPath.equals("null")) {// || parentPath == null) { 
+			filepath = filename;
+		} else {
+			filepath = String.format("%s\\%s", parentPath, filename);
+		}
+		
+		Set<SafeFile> s = um.keySet();
+		Iterator<SafeFile> it = s.iterator();
+		while(it.hasNext()) {
+			SafeFile f = it.next();
+			if(f.getFilePath().equals(filepath)) {
+				m.put(f, um.get(f));
+				for(SafeFile ff : um.get(f)) {
+					addShareFile(f.getFilePath(), ff.getFilename(), um, owner);
+				}
+				break;
+			}
+		}
+		
+		return null;
+	}
+	
+	
+	/**
+	 * Add share friend info into owner's map for a specific directory
+	 * @param parentPath
+	 * @param filename
+	 * @param friend
+	 * @return
+	 */
 	public String addShareInfo(String parentPath, String filename, String friend) { // share parentpath/filename with freind
 		Map<SafeFile, Vector<SafeFile>> m = fileMap.get(username); // get user's map
 		Set<SafeFile> s = m.keySet();
@@ -151,6 +243,14 @@ public class UserFileMap {
 		return null;
 	}
 	
+	
+	/**
+	 * Delete share friend info from owner's map of a specific directory
+	 * @param parentPath
+	 * @param filename
+	 * @param friend
+	 * @return
+	 */
 	public String deleteShareInfo(String parentPath, String filename, String friend) { // unshare parentpath/filename with freind
 		Map<SafeFile, Vector<SafeFile>> m = fileMap.get(username); // get user's map
 		Set<SafeFile> s = m.keySet();
@@ -170,6 +270,10 @@ public class UserFileMap {
 		return null;
 	}
 	
+	
+	/**
+	 * Print out current map with certain format
+	 */
 	public void printFileMap() {
 		Set<String> keys = fileMap.keySet();
 		Iterator<String> kit = keys.iterator();
@@ -192,5 +296,42 @@ public class UserFileMap {
 				System.out.println("------");
 			}
 		}
+	}
+	
+	
+	/**
+	 * Get all files with its owner in this map
+	 * @return file list
+	 */
+	public String getFileList() {
+		String fileList = "";
+		Set<String> keys = fileMap.keySet();
+		Iterator<String> kit = keys.iterator(); // all usernames
+
+		while(kit.hasNext()) {
+			String uname = kit.next(); // username
+			Map<SafeFile, Vector<SafeFile>> m = fileMap.get(uname); // for each user
+			
+			Set<SafeFile> fs = m.keySet(); // all file entries
+			Iterator<SafeFile> it = fs.iterator();
+			while(it.hasNext()) {
+				SafeFile f = it.next();
+				String filepath = String.format("%d\\%s\\%s", f.getIsDir(), uname, f.getFilePath());
+				fileList = String.format("%s;%s", fileList, filepath);				
+			}
+		}
+		return fileList;
+	}
+	
+	public Vector<String> getFriendList(String filepath) {
+		Set<SafeFile> s = fileMap.get(username).keySet();
+		
+		for(SafeFile f : s) {
+			if(f.getFilePath().equals(filepath)) {
+				return f.getFriendList();
+			}
+		}
+		
+		return new Vector<String>(); // empty
 	}
 }

@@ -54,7 +54,16 @@ public class UserInfoMap {
 			return false;
 		} else{
 			user.resetSocket(socket);
-			//map.replace(username, user);
+			return true;
+		}
+	}
+	
+	public boolean updatePublicKey(String username, String modulus, String exponent) {
+		UserInfo user = map.get(username);
+		if (user == null) {
+			return false;
+		} else{
+			user.setPublicKey(modulus, exponent);
 			return true;
 		}
 	}
