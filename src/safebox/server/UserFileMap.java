@@ -323,6 +323,27 @@ public class UserFileMap {
 		return fileList;
 	}
 	
+	/**
+	 * Get all files of owner under a specific path
+	 * @return file list
+	 */
+	public String getFileList(String fileList, String path) {
+		Map<SafeFile, Vector<SafeFile>> m = fileMap.get(username);
+
+		Set<SafeFile> fs = m.keySet(); // all file entries
+		for(SafeFile f : fs) {
+			if(f.getFilePath().equals(path)) {
+				String filepath = String.format("%d\\%s\\%s", f.getIsDir(), username, f.getFilePath());
+				fileList = String.format("%s;%s", fileList, filepath);
+				Vector<SafeFile> flist = m.get(f);
+				for(SafeFile ff : flist) {
+					fileList = getFileList(fileList, ff.getFilePath());
+				}
+			}
+		}
+		return fileList;
+	}
+	
 	public Vector<String> getFriendList(String filepath) {
 		Set<SafeFile> s = fileMap.get(username).keySet();
 		

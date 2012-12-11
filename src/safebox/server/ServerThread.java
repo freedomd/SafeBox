@@ -539,13 +539,39 @@ public class ServerThread extends Thread {
 	 * @return
 	 */
 	public String sync(String [] fields) {
-		UserInfo user = userMap.getUserInfo(fields[1]); // get user info
+		//UserInfo user = userMap.getUserInfo(fields[1]); // get user info
 		String response;
 		
 		String fileList = globalMap.get(fields[1]).getFileList();
 		response = String.format("%d;OK%s", SYNC_RES, fileList);
 		
 		return response;
+	}
+	
+	/**
+	 * Share AES key has been uploaded to AWS, send a notification along with all the share files
+	 * @param fields
+	 */
+	public void shareAESKey(String [] fields) {
+		UserInfo user = userMap.getUserInfo(fields[1]); // get user info
+		UserInfo friend = userMap.getUserInfo(fields[4]); // get share friend info
+		if( user != null && friend != null ) {
+			String filepath = String.format("%s\\%s", fields[2], fields[3]);
+			String fileList = globalMap.get(fields[1]).getFileList("", filepath);
+			String request = String.format("%d;%s%s", PUSH_AES_KEY, fields[1], fileList); // type, owner name, parent path, filename
+			
+			Socket friendSocket = friend.getSocket();
+			if(friendSocket != null) { // user is online
+				try {
+					PrintWriter toFriend =
+						new PrintWriter( friendSocket.getOutputStream() );
+					toFriend.println(request); // send request to friend
+					toFriend.flush(); 
+				}  catch (IOException e) {
+					// do nothing
+				}
+			}
+		} 
 	}
 	
 	
@@ -594,7 +620,10 @@ public class ServerThread extends Thread {
 				   case UNSHAREDIR:
 					   response = unshareDir(fields);
 					   break;
-				   /***
+				   case SHARE_AES_KEY:
+					   shareAESKey(fields);
+					   continue;
+				/***
 				   case ACCEPT:
 					   response = accept(fields);
 					   break;
