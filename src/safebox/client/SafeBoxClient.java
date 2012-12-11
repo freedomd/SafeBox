@@ -1,6 +1,7 @@
 package safebox.client;
 
 import java.net.*;
+import java.security.Key;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.Iterator;
@@ -12,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.io.*;
 
 import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
 
 import safebox.file.SafeFile;
 
@@ -36,6 +38,8 @@ public class SafeBoxClient {
 	private PrintWriter outToServer;
 	private Map<String, RSAPublicKey> keyMap;
 	private RSAPrivateKey privateKey;
+	private String aesFileString;
+	private SecretKey aesFileKey;
 	
 	/* client requests */
 	static final int  REGISTER = 1,		LOGIN = 2,		LOGOUT = 3, 	EXIT = 100, 
@@ -131,9 +135,16 @@ public class SafeBoxClient {
 		}
 	}
 	
+	/**
+	 * Set the four keys
+	 * Send the public key to server
+	 * Put encrypted private key and AES File String to AWS
+	 */
 	public void setKey() {
 		try {
-			user.setSafeKey();
+			user.setSafeKey(); // generate four keys
+			
+			// send the public key to server
 			String mod = user.getSafeKey().getPublicKey().getModulus().toString();
 			String expo = user.getSafeKey().getPublicKey().getPublicExponent().toString();
 			
@@ -143,33 +154,61 @@ public class SafeBoxClient {
 			outToServer.flush();
 			
 			privateKey = user.getSafeKey().getPrivateKey();
+			aesFileKey = user.getSafeKey().getAesFileKey();
+			aesFileString = user.getSafeKey().getaesFileString();
 			
 			// encrypt the private key using AESPKKey, and put it on AWS
-			String filePath = user.getUsername() + "\\" + user.getUsername() + "_PRIVATEKEY";
-			File privateKeyFile = new File(filePath);
+			String privatefilePath = user.getUsername() + "\\" + user.getUsername() + "_PRIVATEKEY";
+			File privateKeyFile = new File(privatefilePath);
 			if (privateKeyFile.createNewFile()) {
-				System.out.println("The file is created in local, " + filePath);
+				System.out.println("Encrypted private key file is created in local, " + privatefilePath);
 			} else {
-				System.out.println("The file exists in local, " + filePath);
+				System.out.println("Encrypted private key file exists in local, " + privatefilePath);
 			}
 			
 			String privateInfo = privateKey.getModulus().toString() + ";" + privateKey.getPrivateExponent().toString();
 			Cipher cipher = Cipher.getInstance("AES");
-			cipher.init(Cipher.ENCRYPT_MODE, privateKey);
+			cipher.init(Cipher.ENCRYPT_MODE, user.getSafeKey().getAesPKKey());
 			String encryptedInfo = cipher.doFinal(privateInfo.getBytes()).toString();
 			
-			BufferedWriter output = new BufferedWriter(new FileWriter(filePath));
+			BufferedWriter output = new BufferedWriter(new FileWriter(privatefilePath));
 		    output.write(encryptedInfo);
 		    output.close();
 		    
 		    String bucketName = "SafeBox";
-	        String key = filePath.replace("\\", "/");
+	        String key = privatefilePath.replace("\\", "/");
 
-	        fileStorage.getObject(bucketName, key);        
-			System.out.println("The file uploaded successfully on AWS, " + filePath);
+	        fileStorage.putObject(bucketName, key, privateKeyFile);        
+			System.out.println("Encrypted private key file uploaded successfully on AWS, " + privatefilePath);
 			
 		    if (privateKeyFile.delete()) {
-		    	System.out.println("The file is deleted in local, " + filePath);
+		    	System.out.println("Encrypted private key file is deleted in local, " + privatefilePath);
+		    }
+		    
+		    // encrypt the aesFileString using public key, and put it on AWS
+		    String aesfilePath = user.getUsername() + "\\" + user.getUsername() + "_AESKEY";
+			File aesStringFile = new File(aesfilePath);
+			if (aesStringFile.createNewFile()) {
+				System.out.println("Encrypted AES String file is created in local, " + aesfilePath);
+			} else {
+				System.out.println("Encrypted AES String file exists in local, " + aesfilePath);
+			}
+			
+			Cipher cipherAES = Cipher.getInstance("AES");
+			cipherAES.init(Cipher.ENCRYPT_MODE, user.getSafeKey().getPublicKey());
+			String encryptedAESInfo = cipherAES.doFinal(aesFileString.getBytes()).toString();
+
+			BufferedWriter outputAES = new BufferedWriter(new FileWriter(aesfilePath));
+		    outputAES.write(encryptedAESInfo);
+		    outputAES.close();
+		    
+	        String keyAES = aesfilePath.replace("\\", "/");
+
+	        fileStorage.putObject(bucketName, keyAES, aesStringFile);        
+			System.out.println("Encrypted AES String file uploaded successfully on AWS, " + aesfilePath);
+			
+		    if (aesStringFile.delete()) {
+		    	System.out.println("Encrypted AES String file is deleted in local, " + aesfilePath);
 		    }
 			
 		} catch (AmazonServiceException ase) {
@@ -192,13 +231,41 @@ public class SafeBoxClient {
 	
 	public void getKey() {
 		try {    
+			// regenerate the AESPKKey, grab the encrypted private key from AWS, decrypt it using AESPKKey
+			user.getSafeKey().genAESPKKey(user.getUsername());
+			
+			String privatePath = user.getUsername() + "\\" + user.getUsername() + "_PRIVATEKEY";
+			
+			String bucketName = "SafeBox";
+	        String key = privatePath.replace("\\", "/");
+
+	        S3Object obj = fileStorage.getObject(bucketName, key);        	        
+	        System.out.println("The file downloaded successfully on AWS, " + privatePath);
+			
+	        // read the content to a string
+			StringBuilder sb = new StringBuilder();
+			BufferedReader br = new BufferedReader(new InputStreamReader(obj.getObjectContent()));
+			String read;
+			
+			while((read = br.readLine()) != null) {
+			    sb.append(read);
+			}
+			String encrpytedPrivate = sb.toString();
+			
+			Cipher cipher = Cipher.getInstance("AES");
+			cipher.init(Cipher.DECRYPT_MODE, user.getSafeKey().getAesPKKey());
+			String decrpytedPrivateInfo = cipher.doFinal(encrpytedPrivate.getBytes()).toString();
+			
+			
+			
+			
+			// grab the encrypted AES String from AWS, decrypt it using private key
 			String filePath = user.getUsername() + "\\" + user.getUsername() + "_AESKEY";
 			
 			String bucketName = "SafeBox";
 	        String key = filePath.replace("\\", "/");
 
-	        S3Object obj = fileStorage.getObject(bucketName, key);        
-	        
+	        S3Object obj = fileStorage.getObject(bucketName, key);        	        
 
 			System.out.println("The file downloaded successfully on AWS, " + filePath);
 
@@ -212,8 +279,6 @@ public class SafeBoxClient {
 			out.close();
 			in.close();
 			System.out.println("The file downloaded successfully to local, " + filePath);
-			
-			// decrypt the private key, using AESPKKey
 			
 			
 			

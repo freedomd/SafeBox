@@ -11,16 +11,19 @@ import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.spec.*;
+import java.util.Random;
 
 
 import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 
 public class SafeKey {
 	private RSAPublicKey publicKey;
 	private RSAPrivateKey privateKey;
-	private Key aesFileKey, aesPKKey;
-	private String aesPKString;
+	private SecretKey aesFileKey, aesPKKey;
+	private String aesFileString, aesPKString;
 	
 	public SafeKey(String aesPKString) throws InvalidKeySpecException {
 		this.aesPKString = aesPKString;
@@ -37,12 +40,16 @@ public class SafeKey {
 		return privateKey;
 	}
 
-	public Key getAesFileKey() {
+	public SecretKey getAesFileKey() {
 		return aesFileKey;
 	}
 
-	public Key getAesPKKey() {
+	public SecretKey getAesPKKey() {
 		return aesPKKey;
+	}
+	
+	public String getaesFileString() {
+		return aesFileString;
 	}
 
 	/**
@@ -102,11 +109,21 @@ public class SafeKey {
 	 */
 	private void genAESFileKey() {
 		try {
+			// randomly generate a 64-bit string, used for generating the AES key
+			char[] chars = "abcdefghijklmnopqrstuvwxyz0123456789".toCharArray();
+			StringBuilder sb = new StringBuilder();
+			Random randomString = new Random();
+			for (int i = 0; i < 64; i++) {
+			    char c = chars[randomString.nextInt(chars.length)];
+			    sb.append(c);
+			}
+			
+			aesFileString = sb.toString();
+			System.out.println("AES file String: " + aesFileString);
+			
 			KeyGenerator keygen = KeyGenerator.getInstance("AES");
 			
-			SecureRandom random = new SecureRandom();
-			String seed = ((Long)System.currentTimeMillis()).toString();
-			random.setSeed(seed.getBytes());			
+			SecureRandom random = new SecureRandom(aesFileString.getBytes());			
 			keygen.init(256, random);
 			
 			aesFileKey = keygen.generateKey();
@@ -120,7 +137,7 @@ public class SafeKey {
 	 * Generate the AES key for encrypting RSA private key
 	 * @param strKey
 	 */
-	private void genAESPKKey(String strKey) {
+	public void genAESPKKey(String strKey) {
 		try {
 			KeyGenerator keygen = KeyGenerator.getInstance("AES");
 			
