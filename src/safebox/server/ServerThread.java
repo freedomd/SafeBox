@@ -376,7 +376,7 @@ public class ServerThread extends Thread {
 		UserInfo user = userMap.getUserInfo(fields[1]); // get user info
 		UserInfo friend = userMap.getUserInfo(fields[4]); // get share friend info
 		if( user != null && friend != null ) {
-			String request = String.format("%d;%s;%s;%s;mod;exp;", SHAREDIR_REQ, fields[1], fields[2], fields[3]); // type, owner name, parent path, filename,
+			String request = String.format("%d;%s;%s;%s;%s;%s;", SHAREDIR_REQ, fields[1], fields[2], fields[3], user.getModulus(), user.getExponent()); // type, owner name, parent path, filename,
 			
 			// add share structure info
 			String message = globalMap.get(fields[4]).addShareFile(fields[2], fields[3], globalMap.get(fields[1]).getFileMap().get(fields[1]), fields[1]); // add share file recursively
@@ -401,7 +401,7 @@ public class ServerThread extends Thread {
 					return response;
 				}
 			}
-			response = String.format("%d;OK;%s;%s;%s;mod;exp;", SHAREDIR_RES, fields[2], fields[3], fields[4]); 
+			response = String.format("%d;OK;%s;%s;%s;%s;%s;", SHAREDIR_RES, fields[2], fields[3], fields[4], friend.getModulus(), friend.getExponent()); 
 		} else {
 			if(user == null) {
 				response = String.format("%d;FAIL;No such user %s exists;", SHAREDIR_RES, fields[1]); 
