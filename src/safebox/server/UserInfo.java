@@ -16,12 +16,27 @@ public class UserInfo {
 	private String password;
 	private Socket socket;
 	private List<String> requests;
+	private String modulus; // public key for this user
+	private String exponent;
 	
 	public UserInfo(String username, String password, Socket socket) {
 		this.username = username;
 		this.password = password;
 		this.socket = socket;
 		this.requests = new ArrayList<String>();
+	}
+	
+	public void setPublicKey(String modulus, String exponent) {
+		this.modulus = modulus;
+		this.exponent = exponent;
+	}
+	
+	public String getModulus() {
+		return this.modulus;
+	}
+	
+	public String getExponent() {
+		return this.exponent;
 	}
 	
 	public String getUsername() {
@@ -31,7 +46,6 @@ public class UserInfo {
 	public String getPassword() {
 		return this.password;
 	}
-	
 	
 	public Socket getSocket() {
 		return this.socket;

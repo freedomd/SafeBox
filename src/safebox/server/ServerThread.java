@@ -7,6 +7,8 @@ import java.net.*;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.Vector;
 
 import safebox.file.SafeFile;
 
@@ -33,11 +35,10 @@ public class ServerThread extends Thread {
 	//private DataOutputStream toClient;
 	private PrintWriter toClient;
 	private AmazonS3 fileStorage;
-	private AmazonS3 keyStorage;
 	
 	/* client requests */
 	static final int  REGISTER = 1,		LOGIN = 2,		LOGOUT = 3, 	EXIT = 100, 
-					  CREATEDIR = 4, 	DELETEDIR = 5,	
+					  CREATEDIR = 4, 	DELETEDIR = 5,	SETKEY = 19, 	SHARE_AES_KEY = 20,
 					  PUTFILE = 6, 		REMOVEFILE = 7, 
 					  SHAREDIR = 8,		UNSHAREDIR = 9,
 					  ACCEPT = 10, 		REJECT = 11, 	SYNC = 99;
@@ -47,11 +48,18 @@ public class ServerThread extends Thread {
 		 			  PUTFILE_RES = 6, 	REMOVEFILE_RES = 7, 
 		 			  SHAREDIR_REQ = 8, SHAREDIR_REQ_RES = 14, SHAREDIR_RES = 9,  UNSHAREDIR_NOTI = 10,	UNSHAREDIR_RES = 11,
 		 			  PUSH_PUT = 12, 	PUSH_REMOVE = 13, 	SYNC_RES = 99,
-					  ACCEPT_RES = 15,  REJECT_RES = 16;
+					  ACCEPT_RES = 15,  REJECT_RES = 16, SETKEY_RES = 19, PUSH_AES_KEY = 20;
 	
 	/* file type */
 	static final int FILE = 0, DIR = 1;
 
+	/**
+	 * Server Thread Constructor
+	 * @param client
+	 * @param clientNum id of this user
+	 * @param userMap record all user info
+	 * @param globalMap 
+	 */
 	public ServerThread(Socket client, int clientNum, UserInfoMap userMap, Map<String, UserFileMap> globalMap) {
 		this.id = clientNum;
 		this.socket = client;
@@ -76,6 +84,11 @@ public class ServerThread extends Thread {
 		System.out.println("Client " + this.id + " get connection.");
 	}
 	
+	/**
+	 * Login Method
+	 * @param fields methodId;username;password
+	 * @return error message
+	 */
 	public String login(String[] fields) {
 		String response;
 		if( userMap.authenticate(fields[1], fields[2]) ) { // success
@@ -100,6 +113,11 @@ public class ServerThread extends Thread {
 		return response;
 	}
 	
+	/**
+	 * Create a root directory on AWS for a new registered user
+	 * @param rootname
+	 * @return success of not
+	 */
 	public boolean createAWSRoot(String rootname) {
 		try {    
 	        // create a file to setup the folder on S3
@@ -135,6 +153,12 @@ public class ServerThread extends Thread {
         }
 	}
 	
+	
+	/**
+	 * Register method
+	 * @param fields methodId;username;password
+	 * @return response
+	 */
 	public String register(String [] fields) {
 		String response;
 		if( userMap.addUserInfo(fields[1], fields[2], this.socket) ) { // success
@@ -154,6 +178,22 @@ public class ServerThread extends Thread {
 		return response;
 	}
 	
+	public String setKey(String [] fields) {
+		String response;
+		if(userMap.updatePublicKey(fields[1], fields[2], fields[3])) {
+			response = String.format("%d;OK;", SETKEY_RES); 
+		} else { // fail
+			response = String.format("%d;FAIL;Cannot find user %s;", SETKEY_RES, fields[1]); 
+		}	
+		return response;
+	}
+	
+	
+	/**
+	 * Log out method
+	 * @param fields methodId;username
+	 * @return response
+	 */
 	public String logout(String [] fields) {
 		String response;
 		if( userMap.updateSocket(fields[1], null) ) {
@@ -165,12 +205,88 @@ public class ServerThread extends Thread {
 		return response;
 	}
 	
+	/**
+	 * push a new create file to a sharing fiend
+	 * @param owner
+	 * @param parentPath
+	 * @param filename
+	 * send to friend: methodId;idDir\owner\filepath;
+	 */
+	public void pushPut(int filetype, String owner, String parentPath, String filename) {
+		String filepath;
+		
+		if(parentPath.equals("null")) {
+			filepath = filename;
+		} else {
+			filepath = String.format("%s\\%s", parentPath, filename);
+		}
+		
+		Vector<String> friendList = globalMap.get(owner).getFriendList(filepath);
+		String push = String.format("%d;%d\\%s\\%s\\%s", PUSH_PUT, filetype, owner, parentPath, filename);
+		for(String f : friendList) { // for every friend, send push
+			UserInfo u = userMap.getUserInfo(f);
+			Socket friendSocket = u.getSocket();
+			if(friendSocket != null) { // user is online
+				try {
+					PrintWriter toFriend =
+						new PrintWriter( friendSocket.getOutputStream() );
+					toFriend.println(push); // send push to friend
+					toFriend.flush(); 
+				}  catch (IOException e) {
+					continue;
+				}
+			}
+		}
+	}
+	
+	
+	/**
+	 * push a remove notification to a sharing friend
+	 * @param owner
+	 * @param parentPath
+	 * @param filename
+	 * send to friend: methodId;owner;isDir;parentPath;filename;
+	 */
+	public void pushRemove(int filetype, String owner, String parentPath, String filename) {
+		String filepath;
+		
+		if(parentPath.equals("null")) {
+			filepath = filename;
+		} else {
+			filepath = String.format("%s\\%s", parentPath, filename);
+		}
+		
+		Vector<String> friendList = globalMap.get(owner).getFriendList(filepath);
+		String push = String.format("%d;%s;%d;%s;%s", PUSH_REMOVE, owner, filetype, parentPath, filename);
+		for(String f : friendList) { // for every friend, send push
+			UserInfo u = userMap.getUserInfo(f);
+			Socket friendSocket = u.getSocket();
+			if(friendSocket != null) { // user is online
+				try {
+					PrintWriter toFriend =
+						new PrintWriter( friendSocket.getOutputStream() );
+					toFriend.println(push); // send push to friend
+					toFriend.flush(); 
+				}  catch (IOException e) {
+					continue;
+				}
+			}
+		}
+		
+	}
+	
+	/**
+	 * Create Directory Method
+	 * @param fields methodId;ownername;parentPath;dirName
+	 * @return response
+	 */
 	public String createDir(String [] fields) {
 		String response;
 		UserInfo user = userMap.getUserInfo(fields[1]); // get user info
 		if( user != null ) {
 			String message = globalMap.get(fields[1]).addNewFile(DIR, fields[2], fields[3], fields[1]); // type, parent path, filename, owner name
 			if(message == null) {
+				pushPut(DIR, fields[1], fields[2], fields[3]);
 				response = String.format("%d;OK;%s;%s;", CREATEDIR_RES, fields[2], fields[3]); 
 			} else {
 				response = String.format("%d;FAIL;%s;%s;%s;", CREATEDIR_RES, message, fields[2], fields[3]); 
@@ -181,10 +297,16 @@ public class ServerThread extends Thread {
 		return response;
 	}
 	
+	/**
+	 * Delete directory method
+	 * @param fields methodId;ownerName;parentPath;dirName;
+	 * @return response
+	 */
 	public String deleteDir(String [] fields) {
 		String response;
 		UserInfo user = userMap.getUserInfo(fields[1]); // get user info
 		if( user != null ) {
+			pushRemove(DIR, fields[1], fields[2], fields[3]);
 			String message = globalMap.get(fields[1]).deleteFile(DIR, fields[2], fields[3], fields[1]); // type, parent path, filename, owner name
 			if(message == null) {
 				response = String.format("%d;OK;%s;%s;", DELETEDIR_RES, fields[2], fields[3]); 
@@ -197,12 +319,19 @@ public class ServerThread extends Thread {
 		return response;
 	}
 	
+	
+	/**
+	 * Put new file
+	 * @param fields methodId;ownerName;parentPath;filename;
+	 * @return response
+	 */
 	public String putFile(String [] fields) {
 		String response;
 		UserInfo user = userMap.getUserInfo(fields[1]); // get user info
 		if( user != null ) {
 			String message = globalMap.get(fields[1]).addNewFile(FILE, fields[2], fields[3], fields[1]); // type, parent path, filename, owner name
 			if(message == null) {
+				pushPut(FILE, fields[1], fields[2], fields[3]);
 				response = String.format("%d;OK;%s;%s;", PUTFILE_RES, fields[2], fields[3]); 
 			} else {
 				response = String.format("%d;FAIL;%s;%s;%s;", PUTFILE_RES, message, fields[2], fields[3]); 
@@ -213,10 +342,17 @@ public class ServerThread extends Thread {
 		return response;
 	}
 	
+	
+	/**
+	 * Remove file method
+	 * @param fields methodId;ownerName;parentPath;filename;
+	 * @return response
+	 */
 	public String removeFile(String [] fields) {
 		String response;
 		UserInfo user = userMap.getUserInfo(fields[1]); // get user info
 		if( user != null ) {
+			pushRemove(FILE, fields[1], fields[2], fields[3]);
 			String message = globalMap.get(fields[1]).deleteFile(FILE, fields[2], fields[3], fields[1]); // type, parent path, filename, owner name
 			if(message == null) {
 				response = String.format("%d;OK;%s;%s;", REMOVEFILE_RES, fields[2], fields[3]); 
@@ -229,18 +365,25 @@ public class ServerThread extends Thread {
 		return response;
 	}
 	
+	
+	/**
+	 * Share a directory with friend
+	 * @param fields methodId;ownerName;parentPath;fileName;shareFriendName;
+	 * @return response
+	 */
 	public String shareDirRequest(String [] fields) {  // owner name, parent path, filename, friend name
 		String response;
 		UserInfo user = userMap.getUserInfo(fields[1]); // get user info
 		UserInfo friend = userMap.getUserInfo(fields[4]); // get share friend info
 		if( user != null && friend != null ) {
-			String request = String.format("%d;%s;%s;%s;", SHAREDIR_REQ, fields[1], fields[2], fields[3]); // type, owner name, parent path, filename,
+			String request = String.format("%d;%s;%s;%s;%s;%s;", SHAREDIR_REQ, fields[1], fields[2], fields[3], user.getModulus(), user.getExponent()); // type, owner name, parent path, filename,
 			
 			// add share structure info
-			String message = globalMap.get(fields[4]).addNewFile(DIR, fields[2], fields[3], fields[1]); // type, parent path, filename, owner name
-			message = globalMap.get(fields[1]).addShareInfo(fields[2], fields[3], fields[1]); // parent path, filename, share friend name
+			String message = globalMap.get(fields[4]).addShareFile(fields[2], fields[3], globalMap.get(fields[1]).getFileMap().get(fields[1]), fields[1]); // add share file recursively
+			globalMap.get(fields[4]).printFileMap();
+			message = globalMap.get(fields[1]).addShareInfo(fields[2], fields[3], fields[4]); // parent path, filename, share friend name
 			if(message != null) {
-				response = String.format("%d;FAIL;%s;", ACCEPT_RES, message); 
+				response = String.format("%d;FAIL;%s;", SHAREDIR_RES, message); 
 				return response;
 			}
 			
@@ -258,7 +401,7 @@ public class ServerThread extends Thread {
 					return response;
 				}
 			}
-			response = String.format("%d;OK;%s;%s;%s;mod;exp;", SHAREDIR_RES, fields[2], fields[3], fields[4]); 
+			response = String.format("%d;OK;%s;%s;%s;%s;%s;", SHAREDIR_RES, fields[2], fields[3], fields[4], friend.getModulus(), friend.getExponent()); 
 		} else {
 			if(user == null) {
 				response = String.format("%d;FAIL;No such user %s exists;", SHAREDIR_RES, fields[1]); 
@@ -344,6 +487,11 @@ public class ServerThread extends Thread {
 
 ****/
 	
+	/**
+	 * Unshare a directory
+	 * @param fields methodId;ownerName;parentPath;fileName;shareFriendName;
+	 * @return response
+	 */
 	public String unshareDir(String [] fields) { 
 		String response;
 		UserInfo user = userMap.getUserInfo(fields[1]); // get user info
@@ -384,7 +532,21 @@ public class ServerThread extends Thread {
 		return response;
 	}
 	
-	//public String sync(fields)
+	
+	/**
+	 * Send synchronize information when user login
+	 * @param fields
+	 * @return
+	 */
+	public String sync(String [] fields) {
+		UserInfo user = userMap.getUserInfo(fields[1]); // get user info
+		String response;
+		
+		String fileList = globalMap.get(fields[1]).getFileList();
+		response = String.format("%d;OK%s", SYNC_RES, fileList);
+		
+		return response;
+	}
 	
 	
 	public void run() {
@@ -404,6 +566,9 @@ public class ServerThread extends Thread {
 				switch (method) {
 				   case REGISTER: 
 					   response = register(fields);
+					   break;
+				   case SETKEY:
+					   response = setKey(fields);
 					   break;
 				   case LOGIN: 
 					   response = login(fields);
@@ -438,7 +603,7 @@ public class ServerThread extends Thread {
 					   break;
 				   ***/
 				   case SYNC:
-					  // response = sync(fields);
+					   response = sync(fields);
 					   break;
 				   case EXIT:
 					   running = false;

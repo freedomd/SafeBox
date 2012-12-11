@@ -5,6 +5,7 @@ import java.net.*;
 import java.security.Key;
 import java.security.KeyFactory;
 import java.security.SecureRandom;
+import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.RSAPrivateKeySpec;
@@ -20,6 +21,7 @@ import java.io.*;
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 import safebox.file.SafeFile;
 
@@ -913,13 +915,34 @@ public class SafeBoxClient {
 			}
 			
 			// encrypt the file using AES key
-			
-			
+			String encryptedPath = parentPath + "\\encrptyed_" + fileName;
+			File encryptedFile = new File(encryptedPath);
+
+			// read original file to a string and encrypt the string
+			BufferedReader reader = new BufferedReader( new FileReader(newFile));
+		    String line = null;
+		    StringBuilder stringBuilder = new StringBuilder();
+		    String ls = System.getProperty("line.separator");
+
+		    while( ( line = reader.readLine() ) != null ) {
+		        stringBuilder.append( line );
+		        stringBuilder.append( ls );
+		    }
+		    
+		    Cipher cipher = Cipher.getInstance("AES");
+		    cipher.init(Cipher.ENCRYPT_MODE, aesFileKey);
+		    String encrpytedString = cipher.doFinal(stringBuilder.toString().getBytes()).toString();
+		    
+		    // write encrypted string to file
+		    BufferedWriter writer = new BufferedWriter( new FileWriter(encryptedFile));
+		    writer.write(encrpytedString);
+		    writer.close();
 			
 			String bucketName = "SafeBox";
 	        String key = filePath.replace("\\", "/");
 	        
-            fileStorage.putObject(new PutObjectRequest(bucketName, key, newFile));
+            fileStorage.putObject(new PutObjectRequest(bucketName, key, encryptedFile));
+            encryptedFile.delete();
             System.out.println("Uploding to S3 succeed, " + filePath);
 	        return true;
 		} catch (AmazonServiceException ase) {
@@ -1316,6 +1339,58 @@ public class SafeBoxClient {
 				sf.addFriend(friendName);
 				shareSubFiles(safeFiles, sf.getFilePath(), friendName);
 			} 
+		}
+		
+		BigInteger n = new BigInteger(mod);
+		BigInteger e = new BigInteger(expo);
+				
+		RSAPublicKeySpec spec = new RSAPublicKeySpec(n, e);
+		
+		try {
+			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+			RSAPublicKey pk = (RSAPublicKey) keyFactory.generatePublic(spec);
+			
+			// use pk to encrypt aesFileString, then put it on AWS
+		    String aesfilePath = user.getUsername() + "\\" + user.getUsername() + "_AESKEY";
+			File aesStringFile = new File(aesfilePath);
+			if (aesStringFile.createNewFile()) {
+				System.out.println("Encrypted AES String file is created in local, " + aesfilePath);
+			} else {
+				System.out.println("Encrypted AES String file exists in local, " + aesfilePath);
+			}
+			
+			Cipher cipherAES = Cipher.getInstance("AES");
+			cipherAES.init(Cipher.ENCRYPT_MODE, pk);
+			String encryptedAESInfo = cipherAES.doFinal(aesFileString.getBytes()).toString();
+
+			BufferedWriter outputAES = new BufferedWriter(new FileWriter(aesfilePath));
+		    outputAES.write(encryptedAESInfo);
+		    outputAES.close();
+		    
+	        String keyAES = aesfilePath.replace("\\", "/");
+
+	        fileStorage.putObject("SafeBox", keyAES, aesStringFile);        
+			System.out.println("Encrypted AES String file uploaded successfully on AWS, " + aesfilePath);
+			
+		    if (aesStringFile.delete()) {
+		    	System.out.println("Encrypted AES String file is deleted in local, " + aesfilePath);
+		    }
+			
+		} catch (AmazonServiceException ase) {
+            System.out.println("Caught an AmazonServiceException, which means your request made it "
+                    + "to Amazon S3, but was rejected with an error response for some reason.");
+            System.out.println("Error Message:    " + ase.getMessage());
+            System.out.println("HTTP Status Code: " + ase.getStatusCode());
+            System.out.println("AWS Error Code:   " + ase.getErrorCode());
+            System.out.println("Error Type:       " + ase.getErrorType());
+            System.out.println("Request ID:       " + ase.getRequestId());
+        } catch (AmazonClientException ace) {
+            System.out.println("Caught an AmazonClientException, which means the client encountered "
+                    + "a serious internal problem while trying to communicate with S3, "
+                    + "such as not being able to access the network.");
+            System.out.println("Error Message: " + ace.getMessage());
+        } catch (Exception exc) {
+			System.out.println("Failed to generate RSA key pairs!\n" + exc.toString());
 		}
 		
 		//createShareAESKey(String friendName, String mod, String expo);
