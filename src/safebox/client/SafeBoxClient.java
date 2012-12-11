@@ -1,12 +1,17 @@
 package safebox.client;
 
 import java.net.*;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
+import java.util.concurrent.ConcurrentHashMap;
 import java.io.*;
 
+import javax.crypto.Cipher;
 
 import safebox.file.SafeFile;
 
@@ -16,6 +21,7 @@ import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.*;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.PutObjectRequest;
+import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 
 /**
@@ -28,21 +34,22 @@ public class SafeBoxClient {
 	private User user;
 	private boolean isLogin;
 	private PrintWriter outToServer;
-	//private BufferedReader inFromServer;
+	private Map<String, RSAPublicKey> keyMap;
+	private RSAPrivateKey privateKey;
 	
 	/* client requests */
 	static final int  REGISTER = 1,		LOGIN = 2,		LOGOUT = 3, 	EXIT = 100, 
-					  CREATEDIR = 4, 	DELETEDIR = 5,	
+					  CREATEDIR = 4, 	DELETEDIR = 5,	SETKEY = 19, SHARE_AES_KEY = 20,
 					  PUTFILE = 6, 		REMOVEFILE = 7, 
 					  SHAREDIR = 8,		UNSHAREDIR = 9,
 					  ACCEPT = 10, 		REJECT = 11, 	SYNC = 99;
 
 	/* server requests */
 	static final int  REGISTER_RES = 1,	LOGIN_RES = 2,	LOGOUT_RES = 3, EXIT_RES = 100, 
-		 			  CREATEDIR_RES = 4,DELETEDIR_RES = 5,	
+		 			  CREATEDIR_RES = 4, DELETEDIR_RES = 5,	
 		 			  PUTFILE_RES = 6, 	REMOVEFILE_RES = 7, 
 		 			  SHAREDIR_REQ = 8, SHAREDIR_REQ_RES = 14, SHAREDIR_RES = 9,  UNSHAREDIR_NOTI = 10,	UNSHAREDIR_RES = 11,
-		 			  PUSH_PUT = 12, 	PUSH_REMOVE = 13, 	SYNC_RES = 99,
+		 			  PUSH_PUT = 12, 	PUSH_REMOVE = 13, SETKEY_RES = 19, PUSH_AES_KEY = 20, SYNC_RES = 99,
 					  ACCEPT_RES = 15,  REJECT_RES = 16;
 
 	/**
@@ -57,6 +64,7 @@ public class SafeBoxClient {
 			//inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 			AWSCredentials c = new BasicAWSCredentials("AKIAIXKDAUTHKZNTDMFA", "XixuCVDrlemEH9SE3aPCVRym5V8CgXpp9y+nHRrQ");
 			fileStorage = new AmazonS3Client(c);
+			keyMap = new ConcurrentHashMap<String, RSAPublicKey>();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -118,28 +126,113 @@ public class SafeBoxClient {
 			System.out.println(os);
 			outToServer.println(os);
 			outToServer.flush();
-			
-//			String[] temp = inFromServer.readLine().split(";");
-//			int methodID = Integer.parseInt(temp[0]);
-//			if (methodID == REGISTER_RES) {
-//				String result = temp[1];
-//				System.out.println(result);
-//				if (result.equals("OK")) {
-//					System.out.println("Register succeed! Logged in!");
-//					user = new User(username); // Once a user logged in successful, the user information will be fetched to the local machine
-//					return true;
-//				} else {
-//					String failMessage = temp[2];
-//					System.out.println(failMessage);
-//					return false;
-//				}
-//			} else {
-//				System.out.println("Communication message error!");
-//				return false;
-//			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+	
+	public void setKey() {
+		try {
+			user.setSafeKey();
+			String mod = user.getSafeKey().getPublicKey().getModulus().toString();
+			String expo = user.getSafeKey().getPublicKey().getPublicExponent().toString();
+			
+			String os = String.format("%d;%s;%s;%s", SETKEY, user.getUsername(), mod, expo);
+			System.out.println(os);
+			outToServer.println(os);
+			outToServer.flush();
+			
+			privateKey = user.getSafeKey().getPrivateKey();
+			
+			// encrypt the private key using AESPKKey, and put it on AWS
+			String filePath = user.getUsername() + "\\" + user.getUsername() + "_PRIVATEKEY";
+			File privateKeyFile = new File(filePath);
+			if (privateKeyFile.createNewFile()) {
+				System.out.println("The file is created in local, " + filePath);
+			} else {
+				System.out.println("The file exists in local, " + filePath);
+			}
+			
+			String privateInfo = privateKey.getModulus().toString() + ";" + privateKey.getPrivateExponent().toString();
+			Cipher cipher = Cipher.getInstance("AES");
+			cipher.init(Cipher.ENCRYPT_MODE, privateKey);
+			String encryptedInfo = cipher.doFinal(privateInfo.getBytes()).toString();
+			
+			BufferedWriter output = new BufferedWriter(new FileWriter(filePath));
+		    output.write(encryptedInfo);
+		    output.close();
+		    
+		    String bucketName = "SafeBox";
+	        String key = filePath.replace("\\", "/");
+
+	        fileStorage.getObject(bucketName, key);        
+			System.out.println("The file uploaded successfully on AWS, " + filePath);
+			
+		    if (privateKeyFile.delete()) {
+		    	System.out.println("The file is deleted in local, " + filePath);
+		    }
+			
+		} catch (AmazonServiceException ase) {
+            System.out.println("Caught an AmazonServiceException, which means your request made it "
+                    + "to Amazon S3, but was rejected with an error response for some reason.");
+            System.out.println("Error Message:    " + ase.getMessage());
+            System.out.println("HTTP Status Code: " + ase.getStatusCode());
+            System.out.println("AWS Error Code:   " + ase.getErrorCode());
+            System.out.println("Error Type:       " + ase.getErrorType());
+            System.out.println("Request ID:       " + ase.getRequestId());
+        } catch (AmazonClientException ace) {
+            System.out.println("Caught an AmazonClientException, which means the client encountered "
+                    + "a serious internal problem while trying to communicate with S3, "
+                    + "such as not being able to access the network.");
+            System.out.println("Error Message: " + ace.getMessage());
+        } catch (Exception e) {
+        	e.printStackTrace();
+        }
+	}
+	
+	public void getKey() {
+		try {    
+			String filePath = user.getUsername() + "\\" + user.getUsername() + "_AESKEY";
+			
+			String bucketName = "SafeBox";
+	        String key = filePath.replace("\\", "/");
+
+	        S3Object obj = fileStorage.getObject(bucketName, key);        
+	        
+
+			System.out.println("The file downloaded successfully on AWS, " + filePath);
+
+			InputStream in = obj.getObjectContent();
+			byte[] buf = new byte[1024];
+			OutputStream out = new FileOutputStream(filePath);
+			int count;
+			while ((count = in.read(buf)) != -1) {
+				out.write(buf, 0, count);
+			}
+			out.close();
+			in.close();
+			System.out.println("The file downloaded successfully to local, " + filePath);
+			
+			// decrypt the private key, using AESPKKey
+			
+			
+			
+		} catch (AmazonServiceException ase) {
+            System.out.println("Caught an AmazonServiceException, which means your request made it "
+                    + "to Amazon S3, but was rejected with an error response for some reason.");
+            System.out.println("Error Message:    " + ase.getMessage());
+            System.out.println("HTTP Status Code: " + ase.getStatusCode());
+            System.out.println("AWS Error Code:   " + ase.getErrorCode());
+            System.out.println("Error Type:       " + ase.getErrorType());
+            System.out.println("Request ID:       " + ase.getRequestId());
+        } catch (AmazonClientException ace) {
+            System.out.println("Caught an AmazonClientException, which means the client encountered "
+                    + "a serious internal problem while trying to communicate with S3, "
+                    + "such as not being able to access the network.");
+            System.out.println("Error Message: " + ace.getMessage());
+        } catch (Exception e) {
+        	e.printStackTrace();
+        }
 	}
 
 	/**
@@ -178,23 +271,6 @@ public class SafeBoxClient {
 			outToServer.println(os);
 			outToServer.flush();
 
-//			String[] temp = inFromServer.readLine().split(";");
-//			int methodID = Integer.parseInt(temp[0]);
-//			if (methodID == LOGIN_RES) {
-//				String result = temp[1];
-//				if (result.equals("OK")) {
-//					System.out.println("Login succeed!");
-//					user = new User(username); // Once a user logged in successful, the user information will be fetched to the local machine
-//					return true;
-//				} else {
-//					String failMessage = temp[2];
-//					System.out.println(failMessage);
-//					return false;
-//				}
-//			} else {
-//				System.out.println("Communication message error!");
-//				return false;
-//			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -216,23 +292,6 @@ public class SafeBoxClient {
 			outToServer.println(os);
 			outToServer.flush();
 
-//			String[] temp = inFromServer.readLine().split(";");
-//			int methodID = Integer.parseInt(temp[0]);
-//			if (methodID == LOGOUT_RES) {
-//				String result = temp[1];
-//				if (result.equals("OK")) {
-//					System.out.println("Logout succeed!");
-//					user = null;
-//					return true;
-//				} else {
-//					String failMessage = temp[2];
-//					System.out.println(failMessage);
-//					return false;
-//				}
-//			} else {
-//				System.out.println("Communication message error!");
-//				return false;
-//			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -259,14 +318,6 @@ public class SafeBoxClient {
 				return;
 			}
 			createDirToServer(parentPath, dirName);
-
-			
-//			if (parentPath.length() == user.getUsername().length() + 1) {
-//				dirPath = parentPath + dirName;
-//			} else {
-//				dirPath = parentPath + "\\" + dirName;
-//			}
-//			System.out.println("New directory created successfully, " + dirPath);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -282,11 +333,11 @@ public class SafeBoxClient {
 			cp = path;
 			len = 1;
 		} else {
-			parent = dirs[1]; 
-			cp = dirs[1]; // current path
+			parent = dirs[0] + "\\" + dirs[1]; 
+			cp = dirs[0] + "\\" + dirs[1];  // current path
 		}
 		
-		for(int i = 0; i < len; i++) { // check ancestors
+		for(int i = 1; i < len; i++) { // check ancestors
 			SafeFile fp = new SafeFile(1, parent, user.getUsername()); // fake parent
 			SafeFile fcp = new SafeFile(1, cp, user.getUsername()); // fake current file
 			
@@ -328,7 +379,7 @@ public class SafeBoxClient {
 				newDir.mkdirs();	
 			} else {
 				System.out.println("The directory exits in local, " + dirPath);
-				return false;
+				return true;
 			}
 			
 			// record in user's account
@@ -347,8 +398,8 @@ public class SafeBoxClient {
 				System.out.println("New directory created in local successfully, " + newSafeDir.getFilePath());
 				return true;
 			} else {
-				System.out.println("Directory exists in user's account, failed to create in local, " + newSafeDir.getFilePath());
-				return false;
+				System.out.println("Directory exists in user's account, " + newSafeDir.getFilePath());
+				return true;
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -361,18 +412,20 @@ public class SafeBoxClient {
 
 		String[] dirs = path.split("\\\\");
 		int len = dirs.length;
-		String cp; // parent path, current path;
+		String cp, fileName; // current path, fileName;
 		if(len == 0) {
 			cp = path;
+			fileName = path;
 			len = 1;
 		} else {
 			cp = dirs[1]; // current path
+			fileName = dirs[1];
 		}
 		
 		//String username = user.getUsername();
 		
-		for(int i = 0; i < len; i++) { // check ancestors
-			String setupPath = dirs[0] + "\\" + cp + ".data";
+		for(int i = 1; i < len; i++) { // check ancestors
+			String setupPath = dirs[0] + "\\" + cp + "\\" + fileName +".data";
 			File setupFile = new File(setupPath); 
 			setupFile.createNewFile();
 			System.out.println("Setup file is created successfully, " + setupPath);
@@ -386,6 +439,7 @@ public class SafeBoxClient {
 			// next
 			if(i + 1 < len) {
 				cp = String.format("%s\\%s", cp, dirs[i + 1]);
+				fileName = dirs[i + 1];
 			}
 		}
 		} catch (Exception e) {
@@ -467,22 +521,6 @@ public class SafeBoxClient {
 			outToServer.println(os);
 			outToServer.flush();
 
-//			String[] temp = inFromServer.readLine().split(";");
-//			int methodID = Integer.parseInt(temp[0]);
-//			if (methodID == CREATEDIR_RES) {
-//				String result = temp[1];
-//				if (result.equals("OK")) {
-//					System.out.println("Creating directory to server succeed, " + dirPath);
-//					return true;
-//				} else {
-//					String failMessage = temp[2];
-//					System.out.println(failMessage);
-//					return false;
-//				}
-//			} else {
-//				System.out.println("Communication message error!");
-//				return false;
-//			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -509,14 +547,6 @@ public class SafeBoxClient {
 				return;
 			}
 			deleteDirFromServer(parentPath, dirName);
-
-			
-//			if (parentPath.length() == user.getUsername().length() + 1) {
-//				dirPath = parentPath + dirName;
-//			} else {
-//				dirPath = parentPath + "\\" + dirName;
-//			}
-//			System.out.println("Directory deleted successfully, " + dirPath);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -593,21 +623,21 @@ public class SafeBoxClient {
 	 * @param folder
 	 * @return true if deletion succeed, otherwise return false
 	 */
-	public boolean deleteSafeFolder(SafeFile delFolder) {
+	public boolean deleteSafeFolder(String userName, SafeFile delFolder) {
 		Map<String, Map<SafeFile, Vector<SafeFile>>> m = user.getFileMap();
-		if (m.get(user.getUsername()).containsKey(delFolder)) {
-			for(SafeFile delFile : m.get(user.getUsername()).get(delFolder)) {
-				if (m.get(user.getUsername()).containsKey(delFile)) {
+		if (m.get(userName).containsKey(delFolder)) {
+			for(SafeFile delFile : m.get(userName).get(delFolder)) {
+				if (m.get(userName).containsKey(delFile)) {
 					if (delFile.getIsDir() == 1) {
-						return deleteSafeFolder(delFile);
+						return deleteSafeFolder(userName, delFile);
 					} else {
-						m.get(user.getUsername()).remove(delFile);
+						m.get(userName).remove(delFile);
 					}
 				} else { // a file that is in the delFolder, but not in the entire file map
 					return false;
 				}
 			}
-			m.get(user.getUsername()).remove(delFolder);
+			m.get(userName).remove(delFolder);
 			return true;
 		} else {
 			System.out.println("Directory does not exist in user's account.");
@@ -641,14 +671,16 @@ public class SafeBoxClient {
 				}
 			} else {
 				System.out.println("The directory does not exist in local, " + dirPath);
-				return false;
+				return true;
 			}	
 			
 			// delete the directory and all files contained in it from user's account
 			SafeFile deleteSafeDir = new SafeFile(1, dirPath, user.getUsername());				
-			if (deleteSafeFolder(deleteSafeDir)) {				
-				SafeFile parentSafeDir = new SafeFile(1, parentPath, user.getUsername());
-				user.getFileMap().get(user.getUsername()).get(parentSafeDir).remove(deleteSafeDir); // delete the directory from its parent's list
+			if (deleteSafeFolder(user.getUsername(), deleteSafeDir)) {				
+				if (parentPath.length() != user.getUsername().length() + 1) {
+					SafeFile parentSafeDir = new SafeFile(1, parentPath, user.getUsername());
+					user.getFileMap().get(user.getUsername()).get(parentSafeDir).remove(deleteSafeDir); // delete the directory from its parent's list
+				}
 				System.out.println("Directory deleted in local successfully, " + deleteSafeDir.getFilePath());
 				return true;
 			} else {
@@ -680,23 +712,6 @@ public class SafeBoxClient {
 			System.out.println(os);
 			outToServer.println(os);
 			outToServer.flush();
-
-//			String[] temp = inFromServer.readLine().split(";");
-//			int methodID = Integer.parseInt(temp[0]);
-//			if (methodID == DELETEDIR_RES) {
-//				String result = temp[1];
-//				if (result.equals("OK")) {
-//					System.out.println("Deleting diretory from server succeed, " + dirPath);
-//					return true;
-//				} else {
-//					String failMessage = temp[2];
-//					System.out.println(failMessage);
-//					return false;
-//				}
-//			} else {
-//				System.out.println("Communication message error!");
-//				return false;
-//			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -723,13 +738,7 @@ public class SafeBoxClient {
 				return;
 			}
 			putFileToServer(parentPath, fileName);
-			
-//			if (parentPath.length() == user.getUsername().length() + 1) {
-//				filePath = parentPath + fileName;
-//			} else {
-//				filePath = parentPath + "\\" + fileName;
-//			}
-//			System.out.println("New File created successfully, " + filePath);
+
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -762,9 +771,18 @@ public class SafeBoxClient {
 			File newFile = new File(filePath);
 			if (!newFile.exists()) {
 				newFile.createNewFile();
+				
+				// write something into the file
+				String fileContent = user.getUsername() + filePath + System.currentTimeMillis();
+				BufferedWriter output = new BufferedWriter(new FileWriter(filePath));
+			    output.write(fileContent);
+			    output.close();
+			    
+			    System.out.println("File content: " + fileContent);
+			    
 			} else {
 				System.out.println("File exists in local, " + filePath);
-				return false;
+				return true;
 			}
 			
 			// record in user's account
@@ -783,8 +801,8 @@ public class SafeBoxClient {
 				System.out.println("New File created in local successfully, " + newSafeFile.getFilePath());
 				return true;
 			} else {
-				System.out.println("File exists in user's account, failed to create in local, " + newSafeFile.getFilePath());
-				return false;
+				System.out.println("File exists in user's account, " + newSafeFile.getFilePath());
+				return true;
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -812,6 +830,10 @@ public class SafeBoxClient {
 				System.out.println("The file does not exist on local machine, failed to upload to AWS, " + filePath);
 				return false;
 			}
+			
+			// encrypt the file using AES key
+			
+			
 			
 			String bucketName = "SafeBox";
 	        String key = filePath.replace("\\", "/");
@@ -860,22 +882,6 @@ public class SafeBoxClient {
 			outToServer.println(os);
 			outToServer.flush();
 
-//			String[] temp = inFromServer.readLine().split(";");
-//			int methodID = Integer.parseInt(temp[0]);
-//			if (methodID == PUTFILE_RES) {
-//				String result = temp[1];
-//				if (result.equals("OK")) {
-//					System.out.println("Creating file to server succeed, " + filePath);
-//					return true;
-//				} else {
-//					String failMessage = temp[2];
-//					System.out.println(failMessage);
-//					return false;
-//				}
-//			} else {
-//				System.out.println("Communication message error!");
-//				return false;
-//			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -902,14 +908,6 @@ public class SafeBoxClient {
 				return;
 			}
 			removeFileFromServer(parentPath, fileName);
-			
-//			if (parentPath.length() == user.getUsername().length() + 1) {
-//				filePath = parentPath + fileName;
-//			} else {
-//				filePath = parentPath + "\\" + fileName;
-//			}
-//			System.out.println("File deleted successfully, " + filePath);
-//			return;
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -982,7 +980,7 @@ public class SafeBoxClient {
 				}
 			} else {
 				System.out.println("File does not exist in local, " + filePath);
-				return false;
+				return true;
 			}	
 			
 			// delete the file from user's account
@@ -991,9 +989,11 @@ public class SafeBoxClient {
 			SafeFile rmSafeFile = new SafeFile(0, filePath, user.getUsername());				
 			if (m.get(user.getUsername()).containsKey(rmSafeFile)) {
 				m.get(user.getUsername()).remove(rmSafeFile);
-				// delete the file from its parent's file list
-				SafeFile parentSafeDir = new SafeFile(1, parentPath, user.getUsername());
-				m.get(user.getUsername()).get(parentSafeDir).remove(rmSafeFile); // delete the directory from its parent's list
+				if (parentPath.length() != user.getUsername().length() + 1) {
+					// delete the file from its parent's file list
+					SafeFile parentSafeDir = new SafeFile(1, parentPath, user.getUsername());
+					m.get(user.getUsername()).get(parentSafeDir).remove(rmSafeFile); // delete the directory from its parent's list
+				}
 				System.out.println("Directory deleted in local successfully, " + rmSafeFile.getFilePath());
 				return true;
 			} else {
@@ -1026,22 +1026,6 @@ public class SafeBoxClient {
 			outToServer.println(os);
 			outToServer.flush();
 
-//			String[] temp = inFromServer.readLine().split(";");
-//			int methodID = Integer.parseInt(temp[0]);
-//			if (methodID == REMOVEFILE_RES) {
-//				String result = temp[1];
-//				if (result.equals("OK")) {
-//					System.out.println("Deleting file from server succeed, " + filePath);
-//					return true;
-//				} else {
-//					String failMessage = temp[2];
-//					System.out.println(failMessage);
-//					return false;
-//				}
-//			} else {
-//				System.out.println("Communication message error!");
-//				return false;
-//			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -1061,15 +1045,22 @@ public class SafeBoxClient {
 			System.out.println("Enter the friend username: ");
 			friendName = br.readLine();
 			
+			// check if the directory exists on local machine
+			String dirPath;
+			if (parentPath.length() == user.getUsername().length() + 1) {
+				dirPath = parentPath + dirName;
+			} else {
+				dirPath = parentPath + "\\" + dirName;
+			}
+			File shareDir = new File(dirPath);
+			if (!shareDir.exists()) {
+				System.out.println("Directory does not exist in local, " + dirPath);
+				return;
+			}
+			
+			// exist, send request to server
 			shareDirToServer(parentPath, dirName, friendName);
 
-			
-//			if (parentPath.length() == user.getUsername().length() + 1) {
-//				dirPath = parentPath + dirName;
-//			} else {
-//				dirPath = parentPath + "\\" + dirName;
-//			}
-//			System.out.println("Directory deleted successfully, " + dirPath);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -1090,7 +1081,7 @@ public class SafeBoxClient {
 			else {
 				toServerPath = null;
 			}
-			String os = String.format("%d;%s;%s;%s;%s", REMOVEFILE, user.getUsername(), toServerPath, dirName, friendName);
+			String os = String.format("%d;%s;%s;%s;%s", SHAREDIR, user.getUsername(), toServerPath, dirName, friendName);
 			System.out.println(os);
 			outToServer.println(os);
 			outToServer.flush();
@@ -1099,6 +1090,114 @@ public class SafeBoxClient {
 			e.printStackTrace();
 		}
 	}
+	
+	/**
+	 * Unshare a directory to a friend
+	 */
+	public void unshareDir() {
+		try {
+			String parentPath, dirName, friendName;
+			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+			System.out.println("UnshareDir:\nEnter the parent path(under the root dir): ");
+			parentPath = String.format("%s\\%s", user.getUsername(), br.readLine());
+			System.out.println("Enter the directory name: ");
+			dirName = br.readLine();
+			System.out.println("Enter the friend username: ");
+			friendName = br.readLine();
+			
+			// check if the directory exists on local machine
+			String dirPath;
+			if (parentPath.length() == user.getUsername().length() + 1) {
+				dirPath = parentPath + dirName;
+			} else {
+				dirPath = parentPath + "\\" + dirName;
+			}
+			File shareDir = new File(dirPath);
+			if (!shareDir.exists()) {
+				System.out.println("Directory does not exist in local, " + dirPath);
+				return;
+			}
+			
+			// exist, send request to server
+			unshareDirToServer(parentPath, dirName, friendName);
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * Send the unshare request to server
+	 * @param parentPath
+	 * @param dirName
+	 * @param friendName
+	 */
+	public void unshareDirToServer(String parentPath, String dirName, String friendName) {
+		try {
+			String toServerPath;
+			if(parentPath.length() != user.getUsername().length() + 1) {
+				toServerPath = parentPath.substring(user.getUsername().length() + 1);
+			}
+			else {
+				toServerPath = null;
+			}
+			String os = String.format("%d;%s;%s;%s;%s", UNSHAREDIR, user.getUsername(), toServerPath, dirName, friendName);
+			System.out.println(os);
+			outToServer.println(os);
+			outToServer.flush();
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+//	public void shareDirChoice(String ownerName, String parentPath, String dirName) {
+//		try {
+//			String choice;
+//			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+//			System.out.println("ShareDir_Request:\n1. Accept\n2. Reject");
+//			
+//			choice = br.readLine();
+//			while (!choice.equals("1") && !choice.equals("2")) {
+//				if (choice.equals("1")) {
+//					accept(ownerName, parentPath, dirName);
+//				} else if (choice.equals("2")) {
+//					reject(ownerName, parentPath, dirName);
+//				} else {
+//					System.out.println("Illegal choice, please enter 1 or 2!");
+//					choice = br.readLine();
+//				}
+//			}
+//
+//		} catch (Exception e) {
+//			e.printStackTrace();
+//		}
+//	}
+//	
+//	public void accept(String ownerName, String parentPath, String dirName) {
+//		try {
+//			String os = String.format("%d;%s;%s;%s;%s", ACCEPT, user.getUsername(), parentPath, dirName, ownerName);
+//			System.out.println(os);
+//			outToServer.println(os);
+//			outToServer.flush();
+//
+//		} catch (Exception e) {
+//			e.printStackTrace();
+//		}
+//	}
+//	
+//	public void reject(String ownerName, String parentPath, String dirName) {
+//		try {
+//			String os = String.format("%d;%s;%s;%s;%s", REJECT, user.getUsername(), parentPath, dirName, ownerName);
+//			System.out.println(os);
+//			outToServer.println(os);
+//			outToServer.flush();
+//
+//		} catch (Exception e) {
+//			e.printStackTrace();
+//		}
+//	}
+	
 	
 	/**
 	 * Helper method, add friend to the friend list of each file under parentPath.
@@ -1111,8 +1210,10 @@ public class SafeBoxClient {
 		Vector<SafeFile> subs = m.get(user.getUsername()).get(parentPath);
 		
 		for(SafeFile sf : safeFiles) {
-			if (subs.contains(sf.getFilePath())) {
-				sf.getFriendList().add(friendName);
+			if (subs == null || subs.isEmpty()) {
+				return;
+			} else if (subs.contains(sf.getFilePath())) {
+				sf.addFriend(friendName);
 				if (sf.getIsDir() == 1) {					
 					shareSubFiles(safeFiles, sf.getFilePath(), friendName);
 				}
@@ -1125,24 +1226,230 @@ public class SafeBoxClient {
 	 * @param dirPath
 	 * @param friendName
 	 */
-	public void shareDirAccepted(String dirPath, String friendName) {
+	public void shareDirAccepted(String dirPath, String friendName, String mod, String expo) {
 		Map<String, Map<SafeFile, Vector<SafeFile>>> m = user.getFileMap();
 		Set<SafeFile> safeFiles = m.get(user.getUsername()).keySet();
 		
 		for(SafeFile sf : safeFiles) {
 			if (sf.getFilePath().equals(dirPath)) {
-				sf.getFriendList().add(friendName);
+				sf.addFriend(friendName);
 				shareSubFiles(safeFiles, sf.getFilePath(), friendName);
 			} 
+		}
+		
+		//createShareAESKey(String friendName, String mod, String expo);
+	}
+	
+	/**
+	 * Helper method, delete friend from the friend list of each file under parentPath.
+	 * @param safeFiles
+	 * @param parentPath
+	 * @param friendName
+	 */
+	public void unshareSubFiles(Set<SafeFile> safeFiles, String parentPath, String friendName) {
+		Map<String, Map<SafeFile, Vector<SafeFile>>> m = user.getFileMap();
+		Vector<SafeFile> subs = m.get(user.getUsername()).get(parentPath);
+		
+		for(SafeFile sf : safeFiles) {
+			if (subs.isEmpty()) {
+				return;
+			} else if (subs.contains(sf.getFilePath())) {
+				sf.deleteFriend(friendName);
+				if (sf.getIsDir() == 1) {					
+					unshareSubFiles(safeFiles, sf.getFilePath(), friendName);
+				}
+			}
 		}
 	}
 	
 	/**
-	 * Synchronized the files from server and AWS after login
+	 * The friend accepted the unshare request, delete him/her from the friend list of this directory.
+	 * @param dirPath
+	 * @param friendName
+	 */
+	public void unshareDirAccepted(String dirPath, String friendName) {
+		Map<String, Map<SafeFile, Vector<SafeFile>>> m = user.getFileMap();
+		Set<SafeFile> safeFiles = m.get(user.getUsername()).keySet();
+		
+		for(SafeFile sf : safeFiles) {
+			if (sf.getFilePath().equals(dirPath)) {
+				sf.deleteFriend(friendName);
+				unshareSubFiles(safeFiles, sf.getFilePath(), friendName);
+			} 
+		}
+		
+		//createShareAESKey(String friendName, String mod, String expo);
+	}
+	
+	/**
+	 * Delete the directory under <ownerName, <dirPath, Vector<subfiles>>> map
+	 * @param ownerName
+	 * @param parentPath
+	 * @param dirPath
+	 */
+	public void unshareDirNOTI(String ownerName, String parentPath, String dirPath) {
+		Map<String, Map<SafeFile, Vector<SafeFile>>> m = user.getFileMap();
+		
+		SafeFile deleteSafeDir = new SafeFile(1, dirPath, ownerName);				
+		if (deleteSafeFolder(ownerName, deleteSafeDir)) {				
+			if (!parentPath.equals("null")) {
+				SafeFile parentSafeDir = new SafeFile(1, parentPath, ownerName);
+				m.get(ownerName).get(parentSafeDir).remove(deleteSafeDir); // delete the directory from its parent's list
+			}
+			System.out.println("Unshared directory deleted in user's account successfully, " + dirPath);
+		} else {
+			System.out.println("Failed to delete unshared directory in user's account, " + dirPath);
+		}
+	}
+	
+	/**
+	 * Delete the pushed file under user's map
+	 * @param ownerName
+	 * @param isDir
+	 * @param parentPath
+	 * @param dirPath
+	 */
+	public void pushRemove(String ownerName, String isDir, String parentPath, String dirPath) {
+		Map<String, Map<SafeFile, Vector<SafeFile>>> m = user.getFileMap();
+		if (isDir.equals("1")) { // dir			
+			SafeFile deleteSafeDir = new SafeFile(1, dirPath, ownerName);				
+			if (deleteSafeFolder(ownerName, deleteSafeDir)) {				
+				if (!parentPath.equals("null")) {
+					SafeFile parentSafeDir = new SafeFile(1, parentPath, ownerName);
+					m.get(ownerName).get(parentSafeDir).remove(deleteSafeDir); // delete the directory from its parent's list
+				}
+			} else {
+				System.out.println("Failed to delete pushed directory in user's account, " + dirPath);
+			}
+		} else { // file			
+			SafeFile rmSafeFile = new SafeFile(0, dirPath, ownerName);				
+			if (m.get(ownerName).containsKey(rmSafeFile)) {
+				m.get(user.getUsername()).remove(rmSafeFile);
+				if (!parentPath.equals("null")) {
+					SafeFile parentSafeDir = new SafeFile(1, parentPath, user.getUsername());
+					m.get(ownerName).get(parentSafeDir).remove(rmSafeFile); // delete the directory from its parent's list
+				}
+			} else {
+				System.out.println("Failed to delete pushed directory in user's account, " + dirPath);
+			}
+		}
+	}
+	
+	/**
+	 * Synchronize request
 	 * @param user
 	 */
-	public void synchronize(User user) {
-		System.out.println("Synchronize from server");
+	public void syncReq() {
+		try {
+			String os = String.format("%d;%s", SYNC, user.getUsername());
+			System.out.println(os);
+			outToServer.println(os);
+			outToServer.flush();
+			System.out.println("Synchronize request to server");
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * Synchronize the files from server and AWS after login
+	 */
+	public void sync(String filePath) {
+		try {
+			System.out.println(filePath);
+
+	        String[] dirs = filePath.split("\\\\");
+	        String awsPath, parentPath, dirName, fileName, localPath;
+	        boolean isDir = false;
+	        
+	        // get the aws path
+	        if (dirs[0].equals("1")) { // directory
+	        	isDir = true;
+	        	awsPath = dirs[1] + "\\";
+	        	if (dirs.length > 3) {
+	        		for (int i = 2; i < dirs.length; ++i) {
+	        			awsPath += dirs[i] + "\\";
+	        		}
+	        		awsPath += dirs[dirs.length - 1] + ".data"; 
+	        	} else {
+	        		awsPath += dirs[dirs.length - 1] + "\\" + dirs[dirs.length - 1] + ".data";
+	        	}
+	        } else { // file
+	        	isDir = false;
+	        	awsPath = dirs[1] + "\\";
+	        	if (dirs.length > 3) {
+	        		for (int i = 2; i < dirs.length - 1; ++i) {
+	        			awsPath += dirs[i] + "\\";
+	        		}
+	        		awsPath += dirs[dirs.length - 1]; 
+	        	} else {
+	        		awsPath += dirs[dirs.length - 1];
+	        	}
+	        	
+	        }
+			
+			String bucketName = "SafeBox";
+	        String key = awsPath.replace("\\", "/");
+
+	        S3Object obj = fileStorage.getObject(bucketName, key);        
+	        
+	        // get the local path
+    		if (dirs.length > 3) {
+	    		parentPath = user.getUsername() + "\\";
+	    		for (int i = 2; i < dirs.length - 2; ++i) {
+	    			parentPath += dirs[i] + "\\";
+	    		}
+	    		parentPath += dirs[dirs.length - 2]; 
+    		} else {
+    			parentPath = user.getUsername() + "\\";
+    		}  		
+	        if (isDir == true) {
+	        	System.out.println("The directory downloaded successfully on AWS, " + filePath);
+	    		dirName = dirs[dirs.length - 1];
+	    		
+	    		createDirToLocal(parentPath, dirName);
+	    		localPath = parentPath + "\\" + dirName;
+
+	    		System.out.println("The directory downloaded successfully to local, " + localPath);
+	    		
+	        } else {
+	        	System.out.println("The file downloaded successfully on AWS, " + filePath);
+	        	fileName = dirs[dirs.length - 1];
+	    		
+	    		putFileToLocal(parentPath, fileName);
+	    		localPath = parentPath + "\\" + fileName;
+	    		
+	    		InputStream in = obj.getObjectContent();
+	    		byte[] buf = new byte[1024];
+	    		OutputStream out = new FileOutputStream(localPath);
+	    		int count;
+	    		while( (count = in.read(buf)) != -1)
+	    		{
+	    		   out.write(buf, 0, count);
+	    		}
+	    		out.close();
+	    		in.close();
+	    		System.out.println("The file downloaded successfully to local, " + localPath);
+	        }
+	        
+	        
+		} catch (AmazonServiceException ase) {
+            System.out.println("Caught an AmazonServiceException, which means your request made it "
+                    + "to Amazon S3, but was rejected with an error response for some reason.");
+            System.out.println("Error Message:    " + ase.getMessage());
+            System.out.println("HTTP Status Code: " + ase.getStatusCode());
+            System.out.println("AWS Error Code:   " + ase.getErrorCode());
+            System.out.println("Error Type:       " + ase.getErrorType());
+            System.out.println("Request ID:       " + ase.getRequestId());
+        } catch (AmazonClientException ace) {
+            System.out.println("Caught an AmazonClientException, which means the client encountered "
+                    + "a serious internal problem while trying to communicate with S3, "
+                    + "such as not being able to access the network.");
+            System.out.println("Error Message: " + ace.getMessage());
+        } catch (Exception e) {
+        	e.printStackTrace();
+        	System.out.println("Failed to download from AWS, " + filePath);
+        }
 	}
 	
 	/**
@@ -1163,7 +1470,7 @@ public class SafeBoxClient {
 	}
 
 	public static void main(String[] args) throws Exception {
-		SafeBoxClient client = new SafeBoxClient("192.168.1.5");
+		SafeBoxClient client = new SafeBoxClient("127.0.0.1");
 		MessageReceiver receiver = new MessageReceiver(client);
 		receiver.start();
 		
@@ -1183,8 +1490,7 @@ public class SafeBoxClient {
 			switch (cmd) {
 				case REGISTER: 
 					if(!client.isLogin) {
-							client.register(); { // new user, automatically log in after registration
-						}
+						client.register();  // new user, automatically log in after registration
 					} else {
 						System.out.println("The user is already logged in!");
 					}
@@ -1192,9 +1498,6 @@ public class SafeBoxClient {
 				case LOGIN: 
 					if(!client.isLogin) {
 						client.login();
-						if (client.isLogin) {
-							client.synchronize(client.user);
-						}
 					} else {
 						System.out.println("The user is already logged in!");
 					}
@@ -1241,6 +1544,13 @@ public class SafeBoxClient {
 						System.out.println("The user has not logged in!");
 					}
 					break;
+				case UNSHAREDIR:
+					if(client.isLogin == true) {
+						client.unshareDir();
+					} else {
+						System.out.println("The user has not logged in!");
+					}
+					break;
 				default:
 					break;
 			}
@@ -1252,6 +1562,7 @@ public class SafeBoxClient {
 			try {
 				cmd = Integer.parseInt(br.readLine());
 			} catch (NumberFormatException e) {
+				cmd = 0;
 				System.out.println("please enter the number listed above!");
 			}
 		}

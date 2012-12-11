@@ -10,6 +10,8 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.security.spec.*;
+
 
 import javax.crypto.KeyGenerator;
 
@@ -17,14 +19,14 @@ import javax.crypto.KeyGenerator;
 public class SafeKey {
 	private RSAPublicKey publicKey;
 	private RSAPrivateKey privateKey;
-	private Key desFileKey, desPKKey;
-	private String desPKString;
+	private Key aesFileKey, aesPKKey;
+	private String aesPKString;
 	
-	public SafeKey(String desPKString) throws InvalidKeySpecException {
-		this.desPKString = desPKString;
+	public SafeKey(String aesPKString) throws InvalidKeySpecException {
+		this.aesPKString = aesPKString;
 		genRSAKeys();
-		genDESFileKey();
-		genDESPKKey(this.desPKString);
+		genAESFileKey();
+		genAESPKKey(this.aesPKString);
 	}
 
 	public RSAPublicKey getPublicKey() {
@@ -35,12 +37,12 @@ public class SafeKey {
 		return privateKey;
 	}
 
-	public Key getDesFileKey() {
-		return desFileKey;
+	public Key getAesFileKey() {
+		return aesFileKey;
 	}
 
-	public Key getDesPKKey() {
-		return desPKKey;
+	public Key getAesPKKey() {
+		return aesPKKey;
 	}
 
 	/**
@@ -68,12 +70,24 @@ public class SafeKey {
 			System.out.println("reconstruct modulus: " + n.toString());
 			System.out.println("reconstruct expo: " + e.toString());
 			
-			java.security.spec.RSAPublicKeySpec spec = new java.security.spec.RSAPublicKeySpec(n, e);
+			RSAPublicKeySpec spec = new RSAPublicKeySpec(n, e);
 	        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 	        RSAPublicKey pk2 = (RSAPublicKey) keyFactory.generatePublic(spec);
 	        
 	        
+	        String s3 = privateKey.getModulus().toString();
+	        String s4 = privateKey.getPrivateExponent().toString();
+	        BigInteger pn = new BigInteger(s3);
+	        BigInteger pe = new BigInteger(s4);
+	        
+			System.out.println("reconstruct private modulus: " + n.toString());
+			System.out.println("reconstruct private expo: " + e.toString());
+	        
+			RSAPrivateKeySpec spec2 = new RSAPrivateKeySpec(pn, pe);
+			RSAPrivateKey prk2 = (RSAPrivateKey) keyFactory.generatePrivate(spec2);
+	        
 	        System.out.println("reconstruct public key: " + pk2);
+	        System.out.println("reconstruct private key: " + prk2);
 			
 			System.out.println("RSA public key: " + publicKey);
 			System.out.println("RSA private key: " + privateKey);
@@ -84,48 +98,41 @@ public class SafeKey {
 	}
 	
 	/**
-	 * Generate the DES file key for encrypting files
+	 * Generate the AES file key for encrypting files
 	 */
-	private void genDESFileKey() {
+	private void genAESFileKey() {
 		try {
-			KeyGenerator keygen = KeyGenerator.getInstance("DES");
+			KeyGenerator keygen = KeyGenerator.getInstance("AES");
 			
 			SecureRandom random = new SecureRandom();
 			String seed = ((Long)System.currentTimeMillis()).toString();
 			random.setSeed(seed.getBytes());			
-			keygen.init(random);
+			keygen.init(256, random);
 			
-			desFileKey = keygen.generateKey();
-			System.out.println("DES file key: " + desFileKey);
+			aesFileKey = keygen.generateKey();
+			System.out.println("AES file key: " + aesFileKey);
 		} catch (Exception e) {
 			System.out.println("Failed to generate DES key for encrypting files!\n" + e.toString());
 		}
 	}
 	
 	/**
-	 * Generate the DES key for encrypting RSA private key
+	 * Generate the AES key for encrypting RSA private key
 	 * @param strKey
 	 */
-	private void genDESPKKey(String strKey) {
+	private void genAESPKKey(String strKey) {
 		try {
-			KeyGenerator keygen = KeyGenerator.getInstance("DES");
+			KeyGenerator keygen = KeyGenerator.getInstance("AES");
 			
 			SecureRandom random = new SecureRandom(strKey.getBytes());		
-			keygen.init(random);
+			keygen.init(256, random);
 			
-			desPKKey = keygen.generateKey();
-			System.out.println("DES pk key: " + desPKKey);
+			aesPKKey = keygen.generateKey();
+			System.out.println("AES pk key: " + aesPKKey);
 			
 		} catch (Exception e) {
-			System.out.println("Failed to generate DES key for encrypting files!\n" + e.toString());
+			System.out.println("Failed to generate AES key for encrypting files!\n" + e.toString());
 		}
 	}
-	
-	
-	public void rsaEncryptFile(String srcFile, String dstFile) {
-		
-	}
-	
-	
 	
 }
