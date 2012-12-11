@@ -1,9 +1,14 @@
 package safebox.client;
 
+import java.math.BigInteger;
 import java.net.*;
 import java.security.Key;
+import java.security.KeyFactory;
+import java.security.SecureRandom;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.security.spec.RSAPrivateKeySpec;
+import java.security.spec.RSAPublicKeySpec;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.io.*;
 
 import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 
 import safebox.file.SafeFile;
@@ -231,17 +237,17 @@ public class SafeBoxClient {
 	
 	public void getKey() {
 		try {    
-			// regenerate the AESPKKey, grab the encrypted private key from AWS, decrypt it using AESPKKey
+			// re-generate the AESPKKey
 			user.getSafeKey().genAESPKKey(user.getUsername());
 			
+			// grab the encrypted private key from AWS, decrypt it using AESPKKey
 			String privatePath = user.getUsername() + "\\" + user.getUsername() + "_PRIVATEKEY";
 			
 			String bucketName = "SafeBox";
 	        String key = privatePath.replace("\\", "/");
 
 	        S3Object obj = fileStorage.getObject(bucketName, key);        	        
-	        System.out.println("The file downloaded successfully on AWS, " + privatePath);
-			
+	        System.out.println("The file downloaded successfully on AWS, " + privatePath);			
 	        // read the content to a string
 			StringBuilder sb = new StringBuilder();
 			BufferedReader br = new BufferedReader(new InputStreamReader(obj.getObjectContent()));
@@ -250,38 +256,48 @@ public class SafeBoxClient {
 			while((read = br.readLine()) != null) {
 			    sb.append(read);
 			}
-			String encrpytedPrivate = sb.toString();
-			
+			String encrpytedPrivate = sb.toString();			
+			// decrypt the string
 			Cipher cipher = Cipher.getInstance("AES");
 			cipher.init(Cipher.DECRYPT_MODE, user.getSafeKey().getAesPKKey());
-			String decrpytedPrivateInfo = cipher.doFinal(encrpytedPrivate.getBytes()).toString();
+			String decryptedPrivateInfo = cipher.doFinal(encrpytedPrivate.getBytes()).toString();			
+			// get the modulous and exponent
+			String[] temp = decryptedPrivateInfo.split(";");
+			String mod = temp[0];
+			String expo = temp[1];
 			
+			BigInteger m = new BigInteger(mod);
+			BigInteger e = new BigInteger(expo);			
+			// generate the private key 
+			RSAPrivateKeySpec spec = new RSAPrivateKeySpec(m, e);
+	        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+	        privateKey = (RSAPrivateKey) keyFactory.generatePrivate(spec);	        
+	        user.getSafeKey().setPrivateKey(privateKey);
 			
-			
-			
-			// grab the encrypted AES String from AWS, decrypt it using private key
-			String filePath = user.getUsername() + "\\" + user.getUsername() + "_AESKEY";
-			
-			String bucketName = "SafeBox";
-	        String key = filePath.replace("\\", "/");
-
-	        S3Object obj = fileStorage.getObject(bucketName, key);        	        
-
-			System.out.println("The file downloaded successfully on AWS, " + filePath);
-
-			InputStream in = obj.getObjectContent();
-			byte[] buf = new byte[1024];
-			OutputStream out = new FileOutputStream(filePath);
-			int count;
-			while ((count = in.read(buf)) != -1) {
-				out.write(buf, 0, count);
+	        
+			// grab the encrypted AES String from AWS, decrypt it using private key, re-generate the AES File String
+			String aesPath = user.getUsername() + "\\" + user.getUsername() + "_AESKEY";
+	        String keyAES = aesPath.replace("\\", "/");
+	        S3Object objAES = fileStorage.getObject(bucketName, keyAES);        	        
+			System.out.println("The file downloaded successfully on AWS, " + aesPath);
+	        // read the content to a string
+			StringBuilder sbAES = new StringBuilder();
+			BufferedReader brAES = new BufferedReader(new InputStreamReader(objAES.getObjectContent()));
+			String readAES;			
+			while((readAES = brAES.readLine()) != null) {
+			    sbAES.append(readAES);
 			}
-			out.close();
-			in.close();
-			System.out.println("The file downloaded successfully to local, " + filePath);
-			
-			
-			
+			String encrpytedAESInfo = sbAES.toString();			
+			// decrypt the string
+			Cipher cipherAES = Cipher.getInstance("RSA");
+			cipherAES.init(Cipher.DECRYPT_MODE, privateKey);
+			aesFileString = cipher.doFinal(encrpytedAESInfo.getBytes()).toString();			
+			// re-generate the aesFileKey
+			KeyGenerator keygen = KeyGenerator.getInstance("AES");			
+			SecureRandom random = new SecureRandom(aesFileString.getBytes());			
+			keygen.init(256, random);			
+			aesFileKey = keygen.generateKey();
+			user.getSafeKey().setAesFileKey(aesFileKey);			
 		} catch (AmazonServiceException ase) {
             System.out.println("Caught an AmazonServiceException, which means your request made it "
                     + "to Amazon S3, but was rejected with an error response for some reason.");

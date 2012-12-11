@@ -104,6 +104,14 @@ public class SafeKey {
 		}
 	}
 	
+	public void setPrivateKey(RSAPrivateKey privateKey) {
+		this.privateKey = privateKey;
+	}
+
+	public void setAesFileKey(SecretKey aesFileKey) {
+		this.aesFileKey = aesFileKey;
+	}
+
 	/**
 	 * Generate the AES file key for encrypting files
 	 */
