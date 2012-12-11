@@ -3,6 +3,7 @@ package safebox.client;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
+import java.security.spec.InvalidKeySpecException;
 import java.util.Map;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
@@ -51,6 +52,20 @@ public class User {
 //	public Map<SafeFile, Vector<SafeFile>> getSharedFile() {
 //		return sharedFile;
 //	}
+
+	public SafeKey getSafeKey() {
+		return safeKey;
+	}
+
+	public void setSafeKey() {
+		try {
+			this.safeKey = new SafeKey(username);
+		} catch (InvalidKeySpecException e) {
+			e.printStackTrace();
+			System.out.println("Failed to create security keys! Exit!");
+			System.exit(-1);
+		}
+	}
 
 	public Map<String, Map<SafeFile, Vector<SafeFile>>> getFileMap() {
 		return fileMap;
