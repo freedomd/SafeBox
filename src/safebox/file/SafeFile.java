@@ -32,10 +32,6 @@ public class SafeFile {
 	}
 	
 	public Vector<String> getFriendList() {
-		System.out.println("Friend List:");
-		for(String f : friendList) {
-			System.out.println(f);
-		}
 		return friendList;
 	}
 	
