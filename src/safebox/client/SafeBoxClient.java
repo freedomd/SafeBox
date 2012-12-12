@@ -984,6 +984,10 @@ public class SafeBoxClient {
 				filePath = parentPath + "\\" + fileName;
 			}
 			
+			if(parentPath.length() != user.getUsername().length() + 1) {
+				buildPath(parentPath); // create a setup file under each directory in the path on AWS
+			}
+			
 			File newFile = new File(filePath); 
 			if (!newFile.exists()) {
 				System.out.println("The file does not exist on local machine, failed to upload to AWS, " + filePath);
@@ -1399,7 +1403,7 @@ public class SafeBoxClient {
 				System.out.println("Encrypted AES String file exists in local, " + aesfilePath);
 			}
 			
-			Cipher cipherAES = Cipher.getInstance("AES");
+			Cipher cipherAES = Cipher.getInstance("RSA");
 			cipherAES.init(Cipher.ENCRYPT_MODE, pk);
 			String encryptedAESInfo = parseByte2HexStr(cipherAES.doFinal(aesFileString.getBytes()));
 
@@ -1669,7 +1673,11 @@ public class SafeBoxClient {
 	    		dirName = dirs[dirs.length - 1];
 	    		
 	    		createDirToLocal(parentPath, dirName);
-	    		localPath = parentPath + "\\" + dirName;
+	       		if (dirs.length > 3) {
+	       			localPath = parentPath + "\\" + dirName;
+	       		} else {
+	       			localPath = parentPath + dirName;
+	       		}
 
 	    		System.out.println("The directory downloaded successfully to local, " + localPath);
 	    		
@@ -1678,7 +1686,11 @@ public class SafeBoxClient {
 	        	fileName = dirs[dirs.length - 1];
 	    		
 	    		putFileToLocal(parentPath, fileName);
-	    		localPath = parentPath + "\\" + fileName;
+	       		if (dirs.length > 3) {
+	       			localPath = parentPath + "\\" + fileName;
+	       		} else {
+	       			localPath = parentPath + fileName;
+	       		}
 	    		
 	    		StringBuilder sb = new StringBuilder();
 				BufferedReader br = new BufferedReader(new InputStreamReader(obj.getObjectContent()));
