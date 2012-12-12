@@ -23,13 +23,14 @@ public class SafeBoxServer {
 	   
 	   /*****************************
 		 * Hardcode part, remember to delete them
-		 */
+		 
 	   userMap.addUserInfo("zz", "123", null);
 	   UserFileMap ufm = new UserFileMap("zz");
 	   globalMap.put("zz", ufm);
 	   userMap.addUserInfo("dd", "123", null);
 	   UserFileMap ufm2 = new UserFileMap("dd");
 	   globalMap.put("dd", ufm2);
+	   */
 	   
        while(true) {
           Socket client = server.accept();
