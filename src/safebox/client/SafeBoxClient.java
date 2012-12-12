@@ -1482,6 +1482,10 @@ public class SafeBoxClient {
 		}
 	}
 	
+	/**
+	 * get ownerName's AES File key to decrypt shared files
+	 * @param ownerName
+	 */
 	public void getAESKey(String ownerName) {
 		try {		
 			String aesKeyPath = ownerName + "\\" + ownerName + "_" + user.getUsername() + "_AESKEY";
@@ -1504,16 +1508,14 @@ public class SafeBoxClient {
 			// decrypt the string
 			Cipher cipherAES = Cipher.getInstance("RSA");
 			cipherAES.init(Cipher.DECRYPT_MODE, privateKey);
-			aesFileString = cipher.doFinal(encrpytedAESInfo.getBytes()).toString();			
+			String newAESFileString = cipherAES.doFinal(encrpytedAESInfo.getBytes()).toString();			
 			// re-generate the aesFileKey
 			KeyGenerator keygen = KeyGenerator.getInstance("AES");			
-			SecureRandom random = new SecureRandom(aesFileString.getBytes());			
+			SecureRandom random = new SecureRandom(newAESFileString.getBytes());			
 			keygen.init(256, random);			
-			aesFileKey = keygen.generateKey();
-	        
-
-	        
-	        
+			SecretKey newAESFileKey = keygen.generateKey();
+			// put it in the aes key map
+	        aesKeyMap.put(ownerName, newAESFileKey);       
 	        
 		} catch (AmazonServiceException ase) {
             System.out.println("Caught an AmazonServiceException, which means your request made it "
@@ -1530,7 +1532,7 @@ public class SafeBoxClient {
             System.out.println("Error Message: " + ace.getMessage());
         } catch (Exception e) {
         	e.printStackTrace();
-        	System.out.println("Failed to download from AWS, " + filePath);
+        	System.out.println("Failed to download from AWS!");
         }
 	}
 	
@@ -1618,16 +1620,17 @@ public class SafeBoxClient {
 	    		putFileToLocal(parentPath, fileName);
 	    		localPath = parentPath + "\\" + fileName;
 	    		
-	    		InputStream in = obj.getObjectContent();
-	    		byte[] buf = new byte[1024];
-	    		OutputStream out = new FileOutputStream(localPath);
-	    		int count;
-	    		while( (count = in.read(buf)) != -1)
-	    		{
-	    		   out.write(buf, 0, count);
-	    		}
-	    		out.close();
-	    		in.close();
+	    		StringBuilder sb = new StringBuilder();
+				BufferedReader br = new BufferedReader(new InputStreamReader(obj.getObjectContent()));
+				String read;			
+				while((read = br.readLine()) != null) {
+				    sb.append(read);
+				}
+				String encryptedFileInfo = sb.toString();
+				
+				String ownerName = dirs[1];
+				decryption(ownerName, encryptedFileInfo, localPath);
+	    		
 	    		System.out.println("The file downloaded successfully to local, " + localPath);
 	        }
 	        
