@@ -1460,7 +1460,7 @@ public class SafeBoxClient {
 		Vector<SafeFile> subs = m.get(user.getUsername()).get(parentPath);
 		
 		for(SafeFile sf : safeFiles) {
-			if (subs.isEmpty()) {
+			if (subs == null || subs.isEmpty()) {
 				return;
 			} else if (subs.contains(sf.getFilePath())) {
 				sf.deleteFriend(friendName);
