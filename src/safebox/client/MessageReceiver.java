@@ -228,7 +228,7 @@ public class MessageReceiver extends Thread{
 							} else {
 								dirPath = temp[1] + "\\" + temp[3];
 							}
-							System.out.println("Share directory request from " + ownerName + ", " + dirPath);
+							System.out.println("Unshare directory request from " + ownerName + ", " + dirPath);
 							client.unshareDirNOTI(ownerName, parentPath, dirPath);
 						} else {
 							System.out.println("Owner is null, illegal request!");
