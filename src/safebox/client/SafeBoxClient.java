@@ -809,7 +809,7 @@ public class SafeBoxClient {
 			m.get(userName).remove(delFolder);
 			return true;
 		} else {
-			System.out.println("Directory does not exist in user's account.");
+			//System.out.println("Directory does not exist in user's account.");
 			return true;
 		}
 	}
@@ -835,8 +835,10 @@ public class SafeBoxClient {
 			if (deleteDir.exists()) {
 				// delete the directory and all files contained in it in local
 				if (!deleteFolder(deleteDir)) {
-					System.out.println("Error in deleting files on local machine, " + dirPath);
+					System.out.println("Cannot remove the directory in local, " + dirPath);
 					return false;
+				} else if (!deleteDir.isDirectory()) {
+					System.out.println("It's a file, cannot remove! " + dirPath);
 				}
 			} else {
 				System.out.println("The directory does not exist in local, " + dirPath);
@@ -1145,7 +1147,7 @@ public class SafeBoxClient {
 	        String key = filePath.replace("\\", "/");
 
 	        fileStorage.deleteObject(bucketName, key);        
-	        System.out.println("The file deleted successfully on AWS or does not exist, " + filePath);
+	       // System.out.println("The file deleted successfully on AWS or does not exist, " + filePath);
 	        return true;
 		} catch (AmazonServiceException ase) {
             System.out.println("Caught an AmazonServiceException, which means your request made it "
@@ -1188,8 +1190,10 @@ public class SafeBoxClient {
 			if (rmFile.exists()) {
 				// delete the file in local
 				if (!rmFile.delete()) {
-					System.out.println("Error in deleting files on local machine, " + filePath);
+					System.out.println("Cannot remove the file in local, " + filePath);
 					return false;
+				} else if (rmFile.isDirectory()) {
+					System.out.println("It's a directory, cannot remove! " + filePath);
 				}
 			} else {
 				System.out.println("File does not exist in local, " + filePath);
@@ -1562,11 +1566,11 @@ public class SafeBoxClient {
 			}
 		} else { // file			
 			SafeFile rmSafeFile = new SafeFile(0, dirPath, ownerName);				
-			if (m.get(ownerName).containsKey(rmSafeFile)) {
+			if (m.get(user.getUsername()).containsKey(rmSafeFile)) {
 				m.get(user.getUsername()).remove(rmSafeFile);
 				if (!parentPath.equals("null")) {
 					SafeFile parentSafeDir = new SafeFile(1, parentPath, user.getUsername());
-					m.get(ownerName).get(parentSafeDir).remove(rmSafeFile); // delete the directory from its parent's list
+					m.get(user.getUsername()).get(parentSafeDir).remove(rmSafeFile); // delete the directory from its parent's list
 				}
 			} else {
 				System.out.println("Failed to delete pushed directory in user's account, " + dirPath);
