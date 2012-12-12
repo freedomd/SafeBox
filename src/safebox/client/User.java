@@ -34,6 +34,7 @@ public class User {
 			//sharedFile = new ConcurrentHashMap<SafeFile, Vector<SafeFile>>();
 			fileMap = new ConcurrentHashMap<String, Map<SafeFile, Vector<SafeFile>>>();
 			fileMap.put(this.username, new ConcurrentHashMap<SafeFile, Vector<SafeFile>>());
+			safeKey = new SafeKey();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

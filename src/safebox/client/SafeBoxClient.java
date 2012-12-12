@@ -23,6 +23,8 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.apache.commons.codec.binary.Base64;
+
 import safebox.file.SafeFile;
 
 import com.amazonaws.*;
@@ -167,6 +169,9 @@ public class SafeBoxClient {
 			aesFileKey = user.getSafeKey().getAesFileKey();
 			aesFileString = user.getSafeKey().getaesFileString();
 			
+
+			
+			
 			// encrypt the private key using AESPKKey, and put it on AWS
 			String privatefilePath = user.getUsername() + "\\" + user.getUsername() + "_PRIVATEKEY";
 			File privateKeyFile = new File(privatefilePath);
@@ -179,7 +184,11 @@ public class SafeBoxClient {
 			String privateInfo = privateKey.getModulus().toString() + ";" + privateKey.getPrivateExponent().toString();
 			Cipher cipher = Cipher.getInstance("AES");
 			cipher.init(Cipher.ENCRYPT_MODE, user.getSafeKey().getAesPKKey());
-			String encryptedInfo = cipher.doFinal(privateInfo.getBytes()).toString();
+			// store the encrypted key in Hex
+			String encryptedInfo = parseByte2HexStr(cipher.doFinal(privateInfo.getBytes())); 
+			
+			
+			System.out.println("Encrypted private key: " + encryptedInfo);
 			
 			BufferedWriter output = new BufferedWriter(new FileWriter(privatefilePath));
 		    output.write(encryptedInfo);
@@ -204,9 +213,12 @@ public class SafeBoxClient {
 				System.out.println("Encrypted AES String file exists in local, " + aesfilePath);
 			}
 			
-			Cipher cipherAES = Cipher.getInstance("AES");
+			Cipher cipherAES = Cipher.getInstance("RSA");
 			cipherAES.init(Cipher.ENCRYPT_MODE, user.getSafeKey().getPublicKey());
-			String encryptedAESInfo = cipherAES.doFinal(aesFileString.getBytes()).toString();
+			// store the encrypted key in Hex
+			String encryptedAESInfo = parseByte2HexStr(cipherAES.doFinal(aesFileString.getBytes()));
+			
+			System.out.println("Encrypted AES File key string: " + encryptedAESInfo);
 
 			BufferedWriter outputAES = new BufferedWriter(new FileWriter(aesfilePath));
 		    outputAES.write(encryptedAESInfo);
@@ -239,6 +251,31 @@ public class SafeBoxClient {
         }
 	}
 	
+	public static String parseByte2HexStr(byte buf[]) { 
+		StringBuffer sb = new StringBuffer(); 
+		for (int i = 0; i < buf.length; i++) { 
+			String hex = Integer.toHexString(buf[i] & 0xFF); 
+			if (hex.length() == 1) { 
+				hex = '0' + hex; 
+			} 
+			sb.append(hex.toUpperCase()); 
+		} 
+		return sb.toString(); 
+	}
+
+	public static byte[] parseHexStr2Byte(String hexStr) {
+		if (hexStr.length() < 1) {
+			return null;
+		}
+		byte[] result = new byte[hexStr.length() / 2];
+		for (int i = 0; i < hexStr.length() / 2; i++) {
+			int high = Integer.parseInt(hexStr.substring(i * 2, i * 2 + 1), 16);
+			int low = Integer.parseInt(hexStr.substring(i * 2 + 1, i * 2 + 2), 16);
+			result[i] = (byte) (high * 16 + low);
+		}
+		return result;
+	}
+	
 	/**
 	 * After login, get the private key, aesFileKey and aesFileString from AWS
 	 */
@@ -263,11 +300,16 @@ public class SafeBoxClient {
 			while((read = br.readLine()) != null) {
 			    sb.append(read);
 			}
-			String encrpytedPrivate = sb.toString();			
+			String encryptedPrivate = sb.toString();			
 			// decrypt the string
 			Cipher cipher = Cipher.getInstance("AES");
 			cipher.init(Cipher.DECRYPT_MODE, user.getSafeKey().getAesPKKey());
-			String decryptedPrivateInfo = cipher.doFinal(encrpytedPrivate.getBytes()).toString();			
+			
+			byte[] decodedValue = parseHexStr2Byte(encryptedPrivate);
+			byte[] decryptedVal = cipher.doFinal(decodedValue);
+//			
+			String decryptedPrivateInfo = new String(decryptedVal);
+			//String decryptedPrivateInfo = cipher.doFinal(encryptedPrivate.getBytes("UTF-8")).toString();			
 			// get the modulous and exponent
 			String[] temp = decryptedPrivateInfo.split(";");
 			String mod = temp[0];
@@ -294,17 +336,28 @@ public class SafeBoxClient {
 			while((readAES = brAES.readLine()) != null) {
 			    sbAES.append(readAES);
 			}
-			String encrpytedAESInfo = sbAES.toString();			
+			String encryptedAESInfo = sbAES.toString();			
 			// decrypt the string
 			Cipher cipherAES = Cipher.getInstance("RSA");
 			cipherAES.init(Cipher.DECRYPT_MODE, privateKey);
-			aesFileString = cipherAES.doFinal(encrpytedAESInfo.getBytes()).toString();			
+			
+			byte[] decodedAESValue = parseHexStr2Byte(encryptedAESInfo);
+			byte[] decryptedAESVal = cipherAES.doFinal(decodedAESValue);
+//			
+			aesFileString = new String(decryptedAESVal);
+			
+			//aesFileString = cipherAES.doFinal(encrpytedAESInfo.getBytes()).toString();			
 			// re-generate the aesFileKey
 			KeyGenerator keygen = KeyGenerator.getInstance("AES");			
 			SecureRandom random = new SecureRandom(aesFileString.getBytes());			
 			keygen.init(256, random);			
 			aesFileKey = keygen.generateKey();
 			user.getSafeKey().setAesFileKey(aesFileKey);			
+			
+			
+			System.out.println("Private Key: " + privateKey);
+			System.out.println("AES File String: " + aesFileString);
+			System.out.println("AES File Key:" + aesFileKey);
 		} catch (AmazonServiceException ase) {
             System.out.println("Caught an AmazonServiceException, which means your request made it "
                     + "to Amazon S3, but was rejected with an error response for some reason.");
@@ -870,7 +923,7 @@ public class SafeBoxClient {
 				newFile.createNewFile();
 				
 				// write something into the file
-				String fileContent = user.getUsername() + filePath + System.currentTimeMillis();
+				String fileContent = filePath + System.currentTimeMillis();
 				BufferedWriter output = new BufferedWriter(new FileWriter(filePath));
 			    output.write(fileContent);
 			    output.close();
@@ -954,11 +1007,13 @@ public class SafeBoxClient {
 		    
 		    Cipher cipher = Cipher.getInstance("AES");
 		    cipher.init(Cipher.ENCRYPT_MODE, aesFileKey);
-		    String encrpytedString = cipher.doFinal(stringBuilder.toString().getBytes()).toString();
+		    String encryptedString = parseByte2HexStr(cipher.doFinal(stringBuilder.toString().getBytes()));
+		    
+		    System.out.println("Encrypted file content: " + encryptedString);
 		    
 		    // write encrypted string to file
 		    BufferedWriter writer = new BufferedWriter( new FileWriter(encryptedFile));
-		    writer.write(encrpytedString);
+		    writer.write(encryptedString);
 		    writer.close();
 			
 			String bucketName = "SafeBox";
@@ -1346,7 +1401,7 @@ public class SafeBoxClient {
 			
 			Cipher cipherAES = Cipher.getInstance("AES");
 			cipherAES.init(Cipher.ENCRYPT_MODE, pk);
-			String encryptedAESInfo = cipherAES.doFinal(aesFileString.getBytes()).toString();
+			String encryptedAESInfo = parseByte2HexStr(cipherAES.doFinal(aesFileString.getBytes()));
 
 			BufferedWriter outputAES = new BufferedWriter(new FileWriter(aesfilePath));
 		    outputAES.write(encryptedAESInfo);
@@ -1503,12 +1558,17 @@ public class SafeBoxClient {
 			while((readAES = brAES.readLine()) != null) {
 			    sbAES.append(readAES);
 			}
-			String encrpytedAESInfo = sbAES.toString();	
+			String encryptedAESInfo = sbAES.toString();	
 			
 			// decrypt the string
 			Cipher cipherAES = Cipher.getInstance("RSA");
 			cipherAES.init(Cipher.DECRYPT_MODE, privateKey);
-			String newAESFileString = cipherAES.doFinal(encrpytedAESInfo.getBytes()).toString();			
+			byte[] decodedAESValue = parseHexStr2Byte(encryptedAESInfo);
+			byte[] decryptedAESVal = cipherAES.doFinal(decodedAESValue);
+//			
+			String newAESFileString = new String(decryptedAESVal);
+			
+			//String newAESFileString = cipherAES.doFinal(encrpytedAESInfo.getBytes()).toString();			
 			// re-generate the aesFileKey
 			KeyGenerator keygen = KeyGenerator.getInstance("AES");			
 			SecureRandom random = new SecureRandom(newAESFileString.getBytes());			
@@ -1681,13 +1741,18 @@ public class SafeBoxClient {
 			BufferedWriter output = new BufferedWriter(new FileWriter(localPath));
 			Cipher cipherAES = Cipher.getInstance("AES");
 			cipherAES.init(Cipher.DECRYPT_MODE, aesKey);
-			String decryptedString = cipherAES.doFinal(aesFileString.getBytes()).toString();
+			byte[] decodedAESValue = parseHexStr2Byte(encryptedString);
+			byte[] decryptedAESVal = cipherAES.doFinal(decodedAESValue);
+//			
+			String decryptedString = new String(decryptedAESVal);
+			
+			//String decryptedString = cipherAES.doFinal(aesFileString.getBytes()).toString();
 		
 			// write file
 			output.write(decryptedString);
 			output.close();
-			System.out.println("Encrypted String:  " + encryptedString);
-			System.out.println("Decrypted String:  " + decryptedString);
+			System.out.println("Encrypted String:  " + localPath + ": " + encryptedString);
+			System.out.println("Decrypted String:  " + localPath + ": " + decryptedString);
 		} catch (Exception e) {
 			System.out.println("Decrypt " + localPath + " failed:");
 			System.out.println(e.toString());
@@ -1712,7 +1777,7 @@ public class SafeBoxClient {
 	}
 
 	public static void main(String[] args) throws Exception {
-		SafeBoxClient client = new SafeBoxClient("127.0.0.1");
+		SafeBoxClient client = new SafeBoxClient("192.168.1.5");
 		MessageReceiver receiver = new MessageReceiver(client);
 		receiver.start();
 		

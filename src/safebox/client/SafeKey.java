@@ -25,6 +25,8 @@ public class SafeKey {
 	private SecretKey aesFileKey, aesPKKey;
 	private String aesFileString, aesPKString;
 	
+	public SafeKey() {}
+	
 	public SafeKey(String aesPKString) throws InvalidKeySpecException {
 		this.aesPKString = aesPKString;
 		genRSAKeys();
@@ -51,6 +53,10 @@ public class SafeKey {
 	public String getaesFileString() {
 		return aesFileString;
 	}
+	
+	public String getaesPKString() {
+		return aesPKString;
+	}
 
 	/**
 	 * Generate the RSA key pairs for encrypting the DES file key
@@ -69,32 +75,32 @@ public class SafeKey {
 			publicKey = (RSAPublicKey) kp.getPublic();
 			privateKey = (RSAPrivateKey) kp.getPrivate();
 			
-			String s = publicKey.getModulus().toString();
-			String s2 = publicKey.getPublicExponent().toString();
-			BigInteger n = new BigInteger(s);
-			BigInteger e = new BigInteger(s2);
-			
-			System.out.println("reconstruct modulus: " + n.toString());
-			System.out.println("reconstruct expo: " + e.toString());
-			
-			RSAPublicKeySpec spec = new RSAPublicKeySpec(n, e);
-	        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-	        RSAPublicKey pk2 = (RSAPublicKey) keyFactory.generatePublic(spec);
-	        
-	        
-	        String s3 = privateKey.getModulus().toString();
-	        String s4 = privateKey.getPrivateExponent().toString();
-	        BigInteger pn = new BigInteger(s3);
-	        BigInteger pe = new BigInteger(s4);
-	        
-			System.out.println("reconstruct private modulus: " + n.toString());
-			System.out.println("reconstruct private expo: " + e.toString());
-	        
-			RSAPrivateKeySpec spec2 = new RSAPrivateKeySpec(pn, pe);
-			RSAPrivateKey prk2 = (RSAPrivateKey) keyFactory.generatePrivate(spec2);
-	        
-	        System.out.println("reconstruct public key: " + pk2);
-	        System.out.println("reconstruct private key: " + prk2);
+//			String s = publicKey.getModulus().toString();
+//			String s2 = publicKey.getPublicExponent().toString();
+//			BigInteger n = new BigInteger(s);
+//			BigInteger e = new BigInteger(s2);
+//			
+//			System.out.println("reconstruct modulus: " + n.toString());
+//			System.out.println("reconstruct expo: " + e.toString());
+//			
+//			RSAPublicKeySpec spec = new RSAPublicKeySpec(n, e);
+//	        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+//	        RSAPublicKey pk2 = (RSAPublicKey) keyFactory.generatePublic(spec);
+//	        
+//	        
+//	        String s3 = privateKey.getModulus().toString();
+//	        String s4 = privateKey.getPrivateExponent().toString();
+//	        BigInteger pn = new BigInteger(s3);
+//	        BigInteger pe = new BigInteger(s4);
+//	        
+//			System.out.println("reconstruct private modulus: " + n.toString());
+//			System.out.println("reconstruct private expo: " + e.toString());
+//	        
+//			RSAPrivateKeySpec spec2 = new RSAPrivateKeySpec(pn, pe);
+//			RSAPrivateKey prk2 = (RSAPrivateKey) keyFactory.generatePrivate(spec2);
+//	        
+//	        System.out.println("reconstruct public key: " + pk2);
+//	        System.out.println("reconstruct private key: " + prk2);
 			
 			System.out.println("RSA public key: " + publicKey);
 			System.out.println("RSA private key: " + privateKey);
