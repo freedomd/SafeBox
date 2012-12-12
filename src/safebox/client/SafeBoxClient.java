@@ -1659,8 +1659,36 @@ public class SafeBoxClient {
 	 * @param localPath
 	 * @return
 	 */
-	public String decryption(String owner, String encryptedString, String localPath) {
+	public void decryption(String owner, String encryptedString, String localPath) {
+		// get AES key first
+		SecretKey aesKey;
+		if(owner.equals(user.getUsername())) { // self
+			aesKey = aesFileKey;
+		} else { // other's 
+			aesKey = aesKeyMap.get(owner);
+			if (aesKey == null) { // not in map yet
+				getAESKey(owner);
+				aesKey = aesKeyMap.get(owner);
+			}
+		}
 		
+		// decryption
+		try {
+			// open local path
+			BufferedWriter output = new BufferedWriter(new FileWriter(localPath));
+			Cipher cipherAES = Cipher.getInstance("AES");
+			cipherAES.init(Cipher.DECRYPT_MODE, aesKey);
+			String decryptedString = cipherAES.doFinal(aesFileString.getBytes()).toString();
+		
+			// write file
+			output.write(decryptedString);
+			output.close();
+			System.out.println("Encrypted String:  " + encryptedString);
+			System.out.println("Decrypted String:  " + decryptedString);
+		} catch (Exception e) {
+			System.out.println("Decrypt " + localPath + " failed:");
+			System.out.println(e.toString());
+		}
 	}
 	
 	/**
