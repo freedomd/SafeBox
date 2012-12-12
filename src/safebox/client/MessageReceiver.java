@@ -202,10 +202,11 @@ public class MessageReceiver extends Thread{
 						}
 						break;
 					case PUSH_AES_KEY: // method_id; ownerName; file1; file2;..., aesKey: ownerName\ownerName_friendName_AESKEY	
-						if (temp[1].equals("null")) { // owner is null
+						if (!temp[1].equals("null")) { // owner is null
 							if (temp.length == 2) {
 								System.out.println("No shared files from " + temp[1]);
 							} else {
+								System.out.println("Owner uploaded aes key, " + temp[1]);
 								client.getAESKey(temp[1]); // get the aesKey
 								for(int i = 2; i < temp.length; ++i) {
 									client.sync(temp[i]);

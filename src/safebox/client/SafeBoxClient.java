@@ -928,7 +928,7 @@ public class SafeBoxClient {
 			    output.write(fileContent);
 			    output.close();
 			    
-			    System.out.println("File content: " + fileContent);
+			    //System.out.println("File content: " + fileContent);
 			    
 			} else {
 				System.out.println("File exists in local, " + filePath);
