@@ -1037,7 +1037,7 @@ public class SafeBoxClient {
 		    cipher.init(Cipher.ENCRYPT_MODE, aesFileKey);
 		    String encryptedString = parseByte2HexStr(cipher.doFinal(stringBuilder.toString().getBytes()));
 		    
-		    System.out.println("Original file content: " + stringBuilder.toString());
+		    System.out.print("Original file content: " + stringBuilder.toString());
 		    System.out.println("Encrypted file content: " + encryptedString);
 		    
 		    // write encrypted string to file
