@@ -1608,6 +1608,18 @@ public class SafeBoxClient {
         }
 	}
 	
+	
+	/**
+	 * Decrypt encrpted string from AWS and write to local file
+	 * @param owner get AES key
+	 * @param encryptedString
+	 * @param localPath
+	 * @return
+	 */
+	public String decryption(String owner, String encryptedString, String localPath) {
+		
+	}
+	
 	/**
 	 * Exit the SafeBox client
 	 */
