@@ -177,8 +177,9 @@ public class MessageReceiver extends Thread{
 								dirPath = client.getUser().getUsername() + "\\" + temp[3];
 							}
 							friendName = temp[4];
-							client.unshareDirAccepted(dirPath, friendName);
 							System.out.println("Unshare directory request accepted from " + friendName + ", " + dirPath);
+							client.unshareDirAccepted(dirPath, friendName);
+
 						} else {
 							String failMessage = temp[2];
 							System.out.println(failMessage);
@@ -283,6 +284,7 @@ public class MessageReceiver extends Thread{
 				}
 				
 			} catch (Exception e) {
+				e.printStackTrace();
 				System.exit(-1);
 			}
 			
