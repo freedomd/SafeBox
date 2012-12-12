@@ -40,7 +40,9 @@ public class SafeFile {
 	}
 	
 	public void addFriend(String friend) {
-		friendList.add(friend);
+		if(!friendList.contains(friend)) {
+			friendList.add(friend);
+		}
 	}
 	
 	public void deleteFriend(String friend) {

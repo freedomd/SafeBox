@@ -518,13 +518,14 @@ public class ServerThread extends Thread {
 					PrintWriter toFriend =
 						new PrintWriter( friendSocket.getOutputStream() );
 					toFriend.println(notification); // send request to friend
+					System.out.println("Unshare Notification: " + notification);
 					toFriend.flush(); 
 				}  catch (IOException e) {
-					response = String.format("%d;OK;Cannot send notification to user %s;", UNSHAREDIR_RES, fields[4]);
+					response = String.format("%d;FAIL;Cannot send notification to user %s;", UNSHAREDIR_RES, fields[4]);
 					return response;
 				}
 			}
-			response = String.format("%d;OK;", UNSHAREDIR_RES, fields[1]); 
+			response = String.format("%d;OK;%s;%s;%s;", UNSHAREDIR_RES, fields[2], fields[3], fields[4]); 
 		} else {
 			if(user == null) {
 				response = String.format("%d;FAIL;No such user %s exists;", UNSHAREDIR_RES, fields[1]); 

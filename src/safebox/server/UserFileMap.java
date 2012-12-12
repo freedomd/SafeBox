@@ -261,10 +261,17 @@ public class UserFileMap {
 		Map<SafeFile, Vector<SafeFile>> m = fileMap.get(username); // get user's map
 		Set<SafeFile> s = m.keySet();
 		Iterator<SafeFile> it = s.iterator();
-		String filepath = String.format("%s\\%s", parentPath, filename);
+		String filepath;
+		
+		if(parentPath.equals("null")) {
+			filepath = filename;
+		} else {
+			filepath = String.format("%s\\%s", parentPath, filename);
+		}
 		while(it.hasNext()) {
 			SafeFile f = it.next();
 			if(f.getFilePath().equals(filepath)) {
+				System.out.println("Delete friend " + friend + " from " + username + "'s " + filepath);
 				f.deleteFriend(friend);
 				Vector<SafeFile> fList = m.get(f);
 				for(SafeFile ff : fList) {
