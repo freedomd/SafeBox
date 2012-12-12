@@ -44,7 +44,8 @@ public class SafeBoxClient {
 	private User user;
 	private boolean isLogin;
 	private PrintWriter outToServer;
-	private Map<String, RSAPublicKey> keyMap;
+	private Map<String, RSAPublicKey> publicKeyMap;
+	private Map<String, SecretKey> aesKeyMap;
 	private RSAPrivateKey privateKey;
 	private String aesFileString;
 	private SecretKey aesFileKey;
@@ -76,7 +77,8 @@ public class SafeBoxClient {
 			//inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 			AWSCredentials c = new BasicAWSCredentials("AKIAIXKDAUTHKZNTDMFA", "XixuCVDrlemEH9SE3aPCVRym5V8CgXpp9y+nHRrQ");
 			fileStorage = new AmazonS3Client(c);
-			keyMap = new ConcurrentHashMap<String, RSAPublicKey>();
+			publicKeyMap = new ConcurrentHashMap<String, RSAPublicKey>();
+			aesKeyMap = new ConcurrentHashMap<String, SecretKey>();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -237,6 +239,9 @@ public class SafeBoxClient {
         }
 	}
 	
+	/**
+	 * After login, get the private key, aesFileKey and aesFileString from AWS
+	 */
 	public void getKey() {
 		try {    
 			// re-generate the AESPKKey
@@ -293,7 +298,7 @@ public class SafeBoxClient {
 			// decrypt the string
 			Cipher cipherAES = Cipher.getInstance("RSA");
 			cipherAES.init(Cipher.DECRYPT_MODE, privateKey);
-			aesFileString = cipher.doFinal(encrpytedAESInfo.getBytes()).toString();			
+			aesFileString = cipherAES.doFinal(encrpytedAESInfo.getBytes()).toString();			
 			// re-generate the aesFileKey
 			KeyGenerator keygen = KeyGenerator.getInstance("AES");			
 			SecureRandom random = new SecureRandom(aesFileString.getBytes());			
@@ -473,6 +478,15 @@ public class SafeBoxClient {
 				if(parentPath.length() != user.getUsername().length() + 1) {
 					checkPath(parentPath); // check parent path
 					SafeFile parentSafeDir = new SafeFile(1, parentPath, user.getUsername());
+					// add the friend info
+					Set<SafeFile> files = m.get(user.getUsername()).keySet();
+					for (SafeFile sf : files) {
+						if (sf.equals(parentSafeDir) && !sf.getFriendList().isEmpty()) {
+							newSafeDir.setFriendList(sf.getFriendList());
+							break;
+						}
+					}
+					
 					m.get(user.getUsername()).get(parentSafeDir).add(newSafeDir); // add new file to parent
 				}				
 				// add the directory to the map
@@ -876,6 +890,15 @@ public class SafeBoxClient {
 				if(parentPath.length() != user.getUsername().length() + 1) {
 					checkPath(parentPath); // check parent path
 					SafeFile parentSafeDir = new SafeFile(1, parentPath, user.getUsername());
+					// add the friend info
+					Set<SafeFile> files = m.get(user.getUsername()).keySet();
+					for (SafeFile sf : files) {
+						if (sf.equals(parentSafeDir) && !sf.getFriendList().isEmpty()) {
+							newSafeFile.setFriendList(sf.getFriendList());
+							break;
+						}
+					}				
+					
 					m.get(user.getUsername()).get(parentSafeDir).add(newSafeFile); // add new file to parent
 				}				
 				// add the file to the map
@@ -1255,53 +1278,6 @@ public class SafeBoxClient {
 		}
 	}
 	
-//	public void shareDirChoice(String ownerName, String parentPath, String dirName) {
-//		try {
-//			String choice;
-//			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-//			System.out.println("ShareDir_Request:\n1. Accept\n2. Reject");
-//			
-//			choice = br.readLine();
-//			while (!choice.equals("1") && !choice.equals("2")) {
-//				if (choice.equals("1")) {
-//					accept(ownerName, parentPath, dirName);
-//				} else if (choice.equals("2")) {
-//					reject(ownerName, parentPath, dirName);
-//				} else {
-//					System.out.println("Illegal choice, please enter 1 or 2!");
-//					choice = br.readLine();
-//				}
-//			}
-//
-//		} catch (Exception e) {
-//			e.printStackTrace();
-//		}
-//	}
-//	
-//	public void accept(String ownerName, String parentPath, String dirName) {
-//		try {
-//			String os = String.format("%d;%s;%s;%s;%s", ACCEPT, user.getUsername(), parentPath, dirName, ownerName);
-//			System.out.println(os);
-//			outToServer.println(os);
-//			outToServer.flush();
-//
-//		} catch (Exception e) {
-//			e.printStackTrace();
-//		}
-//	}
-//	
-//	public void reject(String ownerName, String parentPath, String dirName) {
-//		try {
-//			String os = String.format("%d;%s;%s;%s;%s", REJECT, user.getUsername(), parentPath, dirName, ownerName);
-//			System.out.println(os);
-//			outToServer.println(os);
-//			outToServer.flush();
-//
-//		} catch (Exception e) {
-//			e.printStackTrace();
-//		}
-//	}
-	
 	
 	/**
 	 * Helper method, add friend to the friend list of each file under parentPath.
@@ -1330,9 +1306,16 @@ public class SafeBoxClient {
 	 * @param dirPath
 	 * @param friendName
 	 */
-	public void shareDirAccepted(String dirPath, String friendName, String mod, String expo) {
+	public void shareDirAccepted(String parentPath, String dirName, String friendName, String mod, String expo) {
 		Map<String, Map<SafeFile, Vector<SafeFile>>> m = user.getFileMap();
 		Set<SafeFile> safeFiles = m.get(user.getUsername()).keySet();
+		String dirPath;
+		
+		if (!parentPath.equals("null")) {
+			dirPath = user.getUsername() + "\\" + parentPath + "\\" + dirName; // path: username\parentPath\dirName
+		} else {
+			dirPath = user.getUsername() + "\\" + dirName;
+		}
 		
 		for(SafeFile sf : safeFiles) {
 			if (sf.getFilePath().equals(dirPath)) {
@@ -1350,8 +1333,10 @@ public class SafeBoxClient {
 			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 			RSAPublicKey pk = (RSAPublicKey) keyFactory.generatePublic(spec);
 			
+			publicKeyMap.put(friendName, pk);
+			
 			// use pk to encrypt aesFileString, then put it on AWS
-		    String aesfilePath = user.getUsername() + "\\" + user.getUsername() + "_AESKEY";
+		    String aesfilePath = user.getUsername() + "\\" + user.getUsername() + "_" + friendName + "_AESKEY";
 			File aesStringFile = new File(aesfilePath);
 			if (aesStringFile.createNewFile()) {
 				System.out.println("Encrypted AES String file is created in local, " + aesfilePath);
@@ -1371,6 +1356,12 @@ public class SafeBoxClient {
 
 	        fileStorage.putObject("SafeBox", keyAES, aesStringFile);        
 			System.out.println("Encrypted AES String file uploaded successfully on AWS, " + aesfilePath);
+			
+			// send notification to server
+			String os = String.format("%d;%s;%s;%s;%s", SHARE_AES_KEY, user.getUsername(), parentPath, dirName, friendName);
+			System.out.println(os);
+			outToServer.println(os);
+			outToServer.flush();			
 			
 		    if (aesStringFile.delete()) {
 		    	System.out.println("Encrypted AES String file is deleted in local, " + aesfilePath);
@@ -1489,6 +1480,58 @@ public class SafeBoxClient {
 				System.out.println("Failed to delete pushed directory in user's account, " + dirPath);
 			}
 		}
+	}
+	
+	public void getAESKey(String ownerName) {
+		try {		
+			String aesKeyPath = ownerName + "\\" + ownerName + "_" + user.getUsername() + "_AESKEY";
+			String bucketName = "SafeBox";
+	        String key = aesKeyPath.replace("\\", "/");
+
+	        S3Object obj = fileStorage.getObject(bucketName, key); 
+	        
+	        System.out.println("The file downloaded successfully on AWS, " + aesKeyPath);
+	        
+	        // read the content to a string
+			StringBuilder sbAES = new StringBuilder();
+			BufferedReader brAES = new BufferedReader(new InputStreamReader(obj.getObjectContent()));
+			String readAES;			
+			while((readAES = brAES.readLine()) != null) {
+			    sbAES.append(readAES);
+			}
+			String encrpytedAESInfo = sbAES.toString();	
+			
+			// decrypt the string
+			Cipher cipherAES = Cipher.getInstance("RSA");
+			cipherAES.init(Cipher.DECRYPT_MODE, privateKey);
+			aesFileString = cipher.doFinal(encrpytedAESInfo.getBytes()).toString();			
+			// re-generate the aesFileKey
+			KeyGenerator keygen = KeyGenerator.getInstance("AES");			
+			SecureRandom random = new SecureRandom(aesFileString.getBytes());			
+			keygen.init(256, random);			
+			aesFileKey = keygen.generateKey();
+	        
+
+	        
+	        
+	        
+		} catch (AmazonServiceException ase) {
+            System.out.println("Caught an AmazonServiceException, which means your request made it "
+                    + "to Amazon S3, but was rejected with an error response for some reason.");
+            System.out.println("Error Message:    " + ase.getMessage());
+            System.out.println("HTTP Status Code: " + ase.getStatusCode());
+            System.out.println("AWS Error Code:   " + ase.getErrorCode());
+            System.out.println("Error Type:       " + ase.getErrorType());
+            System.out.println("Request ID:       " + ase.getRequestId());
+        } catch (AmazonClientException ace) {
+            System.out.println("Caught an AmazonClientException, which means the client encountered "
+                    + "a serious internal problem while trying to communicate with S3, "
+                    + "such as not being able to access the network.");
+            System.out.println("Error Message: " + ace.getMessage());
+        } catch (Exception e) {
+        	e.printStackTrace();
+        	System.out.println("Failed to download from AWS, " + filePath);
+        }
 	}
 	
 	/**
