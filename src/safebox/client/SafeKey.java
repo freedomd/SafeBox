@@ -75,35 +75,8 @@ public class SafeKey {
 			publicKey = (RSAPublicKey) kp.getPublic();
 			privateKey = (RSAPrivateKey) kp.getPrivate();
 			
-//			String s = publicKey.getModulus().toString();
-//			String s2 = publicKey.getPublicExponent().toString();
-//			BigInteger n = new BigInteger(s);
-//			BigInteger e = new BigInteger(s2);
-//			
-//			System.out.println("reconstruct modulus: " + n.toString());
-//			System.out.println("reconstruct expo: " + e.toString());
-//			
-//			RSAPublicKeySpec spec = new RSAPublicKeySpec(n, e);
-//	        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-//	        RSAPublicKey pk2 = (RSAPublicKey) keyFactory.generatePublic(spec);
-//	        
-//	        
-//	        String s3 = privateKey.getModulus().toString();
-//	        String s4 = privateKey.getPrivateExponent().toString();
-//	        BigInteger pn = new BigInteger(s3);
-//	        BigInteger pe = new BigInteger(s4);
-//	        
-//			System.out.println("reconstruct private modulus: " + n.toString());
-//			System.out.println("reconstruct private expo: " + e.toString());
-//	        
-//			RSAPrivateKeySpec spec2 = new RSAPrivateKeySpec(pn, pe);
-//			RSAPrivateKey prk2 = (RSAPrivateKey) keyFactory.generatePrivate(spec2);
-//	        
-//	        System.out.println("reconstruct public key: " + pk2);
-//	        System.out.println("reconstruct private key: " + prk2);
-			
-			System.out.println("RSA public key: " + publicKey);
-			System.out.println("RSA private key: " + privateKey);
+			//System.out.println("RSA public key: " + publicKey);
+			//System.out.println("RSA private key: " + privateKey);
 			
 		} catch (NoSuchAlgorithmException e) {
 			System.out.println("Failed to generate RSA key pairs!\n" + e.toString());
@@ -133,7 +106,7 @@ public class SafeKey {
 			}
 			
 			aesFileString = sb.toString();
-			System.out.println("AES file String: " + aesFileString);
+			//System.out.println("AES file String: " + aesFileString);
 			
 			KeyGenerator keygen = KeyGenerator.getInstance("AES");
 			
@@ -141,7 +114,7 @@ public class SafeKey {
 			keygen.init(256, random);
 			
 			aesFileKey = keygen.generateKey();
-			System.out.println("AES file key: " + aesFileKey);
+			//System.out.println("AES file key: " + aesFileKey);
 		} catch (Exception e) {
 			System.out.println("Failed to generate DES key for encrypting files!\n" + e.toString());
 		}
@@ -159,7 +132,7 @@ public class SafeKey {
 			keygen.init(256, random);
 			
 			aesPKKey = keygen.generateKey();
-			System.out.println("AES pk key: " + aesPKKey);
+			//System.out.println("AES pk key: " + aesPKKey);
 			
 		} catch (Exception e) {
 			System.out.println("Failed to generate AES key for encrypting files!\n" + e.toString());
