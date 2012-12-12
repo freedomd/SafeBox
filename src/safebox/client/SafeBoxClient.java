@@ -1789,7 +1789,7 @@ public class SafeBoxClient {
 	}
 
 	public static void main(String[] args) throws Exception {
-		SafeBoxClient client = new SafeBoxClient("192.168.1.5");
+		SafeBoxClient client = new SafeBoxClient("192.168.0.100");
 		MessageReceiver receiver = new MessageReceiver(client);
 		receiver.start();
 		
