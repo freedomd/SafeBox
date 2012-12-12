@@ -99,7 +99,7 @@ public class MessageReceiver extends Thread{
 							} else {
 								dirPath = client.getUser().getUsername() + "\\" + temp[3];
 							}
-							System.out.println("Creating directory to server succeed, " + dirPath);
+							System.out.println("Done! " + dirPath);
 						} else {
 							String failMessage = temp[2];
 							System.out.println(failMessage);
@@ -113,7 +113,7 @@ public class MessageReceiver extends Thread{
 							} else {
 								dirPath = client.getUser().getUsername() + "\\" + temp[3];
 							}
-							System.out.println("Deleting diretory from server succeed, " + dirPath);
+							System.out.println("Done! " + dirPath);
 						} else {
 							String failMessage = temp[2];
 							System.out.println(failMessage);
@@ -127,7 +127,7 @@ public class MessageReceiver extends Thread{
 							} else {
 								filePath = client.getUser().getUsername() + "\\" + temp[3];
 							}
-							System.out.println("Createing file to server succeed, " + filePath);
+							System.out.println("Done! " + filePath);
 						} else {
 							String failMessage = temp[2];
 							System.out.println(failMessage);
@@ -141,7 +141,7 @@ public class MessageReceiver extends Thread{
 							} else {
 								filePath = client.getUser().getUsername() + "\\" + temp[3];
 							}
-							System.out.println("Deleting file from server succeed, " + filePath);
+							System.out.println("Done! " + filePath);
 						} else {
 							String failMessage = temp[2];
 							System.out.println(failMessage);
@@ -177,8 +177,9 @@ public class MessageReceiver extends Thread{
 								dirPath = client.getUser().getUsername() + "\\" + temp[3];
 							}
 							friendName = temp[4];
-							client.unshareDirAccepted(dirPath, friendName);
 							System.out.println("Unshare directory request accepted from " + friendName + ", " + dirPath);
+							client.unshareDirAccepted(dirPath, friendName);
+
 						} else {
 							String failMessage = temp[2];
 							System.out.println(failMessage);
@@ -206,12 +207,13 @@ public class MessageReceiver extends Thread{
 							if (temp.length == 2) {
 								System.out.println("No shared files from " + temp[1]);
 							} else {
-								System.out.println("Owner uploaded aes key, " + temp[1]);
+								System.out.println(temp[1] + " uploaded AES File Key String");
 								client.getAESKey(temp[1]); // get the aesKey
+								System.out.println("Synchronizing files from, " + temp[1] + "...");
 								for(int i = 2; i < temp.length; ++i) {
 									client.sync(temp[i]);
 								}
-								System.out.println("Download shared files from " + temp[1] + " finished!");
+								System.out.println("Done!");
 							}
 						} else {
 							String failMessage = temp[2];
@@ -236,8 +238,9 @@ public class MessageReceiver extends Thread{
 						break;
 					case PUSH_PUT:
 						if (!temp[1].equals("null")) { // no file pushed
+							System.out.println("Push put, " + temp[1]);
 							client.sync(temp[1]);
-							System.out.println("Finished getting the pushed file, " + temp[1]);
+							System.out.println("Done!");
 						} else {
 							System.out.println("Server pushed null!");
 						}
@@ -256,7 +259,7 @@ public class MessageReceiver extends Thread{
 							}
 							System.out.println("Push remove, " + dirPath);
 							client.pushRemove(ownerName, isDir, parentPath, dirPath);
-							System.out.println("Finished removing the pushed file, " + dirPath);
+							System.out.println("Done!");
 						} else {
 							System.out.println("Owner is null, illegal push!");
 						}

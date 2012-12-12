@@ -138,7 +138,7 @@ public class SafeBoxClient {
 			}
 
 			String os = String.format("%d;%s;%s;", REGISTER, username, password);
-			System.out.println(os);
+			//System.out.println(os);
 			outToServer.println(os);
 			outToServer.flush();
 		} catch (Exception e) {
@@ -160,7 +160,7 @@ public class SafeBoxClient {
 			String expo = user.getSafeKey().getPublicKey().getPublicExponent().toString();
 			
 			String os = String.format("%d;%s;%s;%s", SETKEY, user.getUsername(), mod, expo);
-			System.out.println(os);
+			//System.out.println(os);
 			outToServer.println(os);
 			outToServer.flush();
 			
@@ -168,14 +168,15 @@ public class SafeBoxClient {
 			aesFileKey = user.getSafeKey().getAesFileKey();
 			aesFileString = user.getSafeKey().getaesFileString();
 			
-
 			
+			
+			//System.out.println("Public key modulous: " + user.getSafeKey().getPublicKey().getModulus() + "\npublic exponent: " + user.getSafeKey().getPublicKey().getPublicExponent());
 			
 			// encrypt the private key using AESPKKey, and put it on AWS
 			String privatefilePath = user.getUsername() + "\\" + user.getUsername() + "_PRIVATEKEY";
 			File privateKeyFile = new File(privatefilePath);
 			if (privateKeyFile.createNewFile()) {
-				System.out.println("Encrypted private key file is created in local, " + privatefilePath);
+				//System.out.println("Encrypted private key file is created in local, " + privatefilePath);
 			} else {
 				System.out.println("Encrypted private key file exists in local, " + privatefilePath);
 			}
@@ -186,8 +187,9 @@ public class SafeBoxClient {
 			// store the encrypted key in Hex
 			String encryptedInfo = parseByte2HexStr(cipher.doFinal(privateInfo.getBytes())); 
 			
-			
-			System.out.println("Encrypted private key: " + encryptedInfo);
+			//System.out.println("AES PrivateKey key: " + user.getSafeKey().getAesPKKey());
+			//System.out.println("Private key modulous: " + privateKey.getModulus() + "\nprivate exponent: " + privateKey.getPrivateExponent());
+			//System.out.println("Encrypted private key: " + encryptedInfo);
 			
 			BufferedWriter output = new BufferedWriter(new FileWriter(privatefilePath));
 		    output.write(encryptedInfo);
@@ -197,17 +199,17 @@ public class SafeBoxClient {
 	        String key = privatefilePath.replace("\\", "/");
 
 	        fileStorage.putObject(bucketName, key, privateKeyFile);        
-			System.out.println("Encrypted private key file uploaded successfully on AWS, " + privatefilePath);
+			//System.out.println("Encrypted private key file uploaded successfully on AWS, " + privatefilePath);
 			
 		    if (privateKeyFile.delete()) {
-		    	System.out.println("Encrypted private key file is deleted in local, " + privatefilePath);
+		    	//System.out.println("Encrypted private key file is deleted in local, " + privatefilePath);
 		    }
 		    
 		    // encrypt the aesFileString using public key, and put it on AWS
 		    String aesfilePath = user.getUsername() + "\\" + user.getUsername() + "_AESKEY";
 			File aesStringFile = new File(aesfilePath);
 			if (aesStringFile.createNewFile()) {
-				System.out.println("Encrypted AES String file is created in local, " + aesfilePath);
+				//System.out.println("Encrypted AES String file is created in local, " + aesfilePath);
 			} else {
 				System.out.println("Encrypted AES String file exists in local, " + aesfilePath);
 			}
@@ -217,8 +219,12 @@ public class SafeBoxClient {
 			// store the encrypted key in Hex
 			String encryptedAESInfo = parseByte2HexStr(cipherAES.doFinal(aesFileString.getBytes()));
 			
-			System.out.println("Encrypted AES File key string: " + encryptedAESInfo);
+			//System.out.println("AES File key: " + aesFileKey);
+			//System.out.println("AES File key string: " + aesFileString);
+			//System.out.println("Encrypted AES File key string: " + encryptedAESInfo);
 
+
+			
 			BufferedWriter outputAES = new BufferedWriter(new FileWriter(aesfilePath));
 		    outputAES.write(encryptedAESInfo);
 		    outputAES.close();
@@ -226,10 +232,10 @@ public class SafeBoxClient {
 	        String keyAES = aesfilePath.replace("\\", "/");
 
 	        fileStorage.putObject(bucketName, keyAES, aesStringFile);        
-			System.out.println("Encrypted AES String file uploaded successfully on AWS, " + aesfilePath);
+			//System.out.println("Encrypted AES String file uploaded successfully on AWS, " + aesfilePath);
 			
 		    if (aesStringFile.delete()) {
-		    	System.out.println("Encrypted AES String file is deleted in local, " + aesfilePath);
+		    	//System.out.println("Encrypted AES String file is deleted in local, " + aesfilePath);
 		    }
 			
 		} catch (AmazonServiceException ase) {
@@ -290,7 +296,9 @@ public class SafeBoxClient {
 	        String key = privatePath.replace("\\", "/");
 
 	        S3Object obj = fileStorage.getObject(bucketName, key);        	        
-	        System.out.println("The file downloaded successfully on AWS, " + privatePath);			
+	        
+	        System.out.println("Downloaded user's private key, " + privatePath);
+	        //System.out.println("The file downloaded successfully on AWS, " + privatePath);			
 	        // read the content to a string
 			StringBuilder sb = new StringBuilder();
 			BufferedReader br = new BufferedReader(new InputStreamReader(obj.getObjectContent()));
@@ -321,13 +329,16 @@ public class SafeBoxClient {
 	        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 	        privateKey = (RSAPrivateKey) keyFactory.generatePrivate(spec);	        
 	        user.getSafeKey().setPrivateKey(privateKey);
+	        
+	        //System.out.println("Encrypted private key: " + encryptedPrivate);
+			//System.out.println("Private key modulous: " + privateKey.getModulus() + "\nprivate exponent: " + privateKey.getPrivateExponent());
 			
 	        
 			// grab the encrypted AES String from AWS, decrypt it using private key, re-generate the AES File String
 			String aesPath = user.getUsername() + "\\" + user.getUsername() + "_AESKEY";
 	        String keyAES = aesPath.replace("\\", "/");
 	        S3Object objAES = fileStorage.getObject(bucketName, keyAES);        	        
-			System.out.println("The file downloaded successfully on AWS, " + aesPath);
+			System.out.println("Downloaded user's AES File key, " + aesPath);
 	        // read the content to a string
 			StringBuilder sbAES = new StringBuilder();
 			BufferedReader brAES = new BufferedReader(new InputStreamReader(objAES.getObjectContent()));
@@ -353,10 +364,14 @@ public class SafeBoxClient {
 			aesFileKey = keygen.generateKey();
 			user.getSafeKey().setAesFileKey(aesFileKey);			
 			
+			//System.out.println("Encrypted AES File Key string: " + encryptedAESInfo);
+			//System.out.println("AES File Key string:" + aesFileString);
+			//System.out.println("AES File Key: " + aesFileKey);
 			
-			System.out.println("Private Key: " + privateKey);
-			System.out.println("AES File String: " + aesFileString);
-			System.out.println("AES File Key:" + aesFileKey);
+			//System.out.println("Private Key: " + privateKey);
+			//System.out.println("AES File String: " + aesFileString)
+			//System.out.println("Encrypted AES File Key: ");
+			//System.out.println("AES File Key:" + aesFileKey);
 		} catch (AmazonServiceException ase) {
             System.out.println("Caught an AmazonServiceException, which means your request made it "
                     + "to Amazon S3, but was rejected with an error response for some reason.");
@@ -407,7 +422,7 @@ public class SafeBoxClient {
 			}
 		
 			String os = String.format("%d;%s;%s;", LOGIN, username, password);
-			System.out.println(os);
+			//System.out.println(os);
 			outToServer.println(os);
 			outToServer.flush();
 
@@ -428,7 +443,7 @@ public class SafeBoxClient {
 			System.out.println("Logout:");
 
 			String os = String.format("%d;%s;", LOGOUT, user.getUsername());
-			System.out.println(os);
+			//System.out.println(os);
 			outToServer.println(os);
 			outToServer.flush();
 
@@ -458,6 +473,8 @@ public class SafeBoxClient {
 				return;
 			}
 			createDirToServer(parentPath, dirName);
+			
+			//System.out.println("Done!");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -511,7 +528,7 @@ public class SafeBoxClient {
 			} else { // username\***
 				dirPath = parentPath + "\\" + dirName;
 			}			
-			System.out.println(dirPath);
+			//System.out.println(dirPath);
 
 			// create on local machine
 			File newDir = new File(dirPath);
@@ -539,13 +556,13 @@ public class SafeBoxClient {
 					}
 					
 					if (m.get(user.getUsername()).get(parentSafeDir).add(newSafeDir)) { // add new file to parent
-						System.out.println("New directory added in parent's list, " + dirPath);
+						//System.out.println("New directory added in parent's list, " + dirPath);
 					}
 				}				
 				// add the directory to the map
 				m.get(user.getUsername()).put(newSafeDir, new Vector<SafeFile>()); 
 				
-				System.out.println("New directory created in local successfully, " + newSafeDir.getFilePath());
+				//System.out.println("New directory created in local successfully, " + newSafeDir.getFilePath());
 				return true;
 			} else {
 				System.out.println("Directory exists in user's account, " + newSafeDir.getFilePath());
@@ -578,13 +595,13 @@ public class SafeBoxClient {
 			String setupPath = dirs[0] + "\\" + cp + "\\" + fileName +".data";
 			File setupFile = new File(setupPath); 
 			setupFile.createNewFile();
-			System.out.println("Setup file is created successfully, " + setupPath);
+			//System.out.println("Setup file is created successfully, " + setupPath);
 			
 			String bucketName = "SafeBox";
 	        String key = setupPath.replace("\\", "/");
 	        
             fileStorage.putObject(new PutObjectRequest(bucketName, key, setupFile));
-            System.out.println("Uploding to S3 succeed, " + setupPath);
+            //System.out.println("Uploding to S3 succeed, " + setupPath);
             
 			// next
 			if(i + 1 < len) {
@@ -622,13 +639,13 @@ public class SafeBoxClient {
 			String setupPath = dirPath + "\\" + dirName + ".data";
 			File setupFile = new File(setupPath); 
 			setupFile.createNewFile();
-			System.out.println("Setup file is created successfully, " + setupPath);
+			//System.out.println("Setup file is created successfully, " + setupPath);
 			
 			String bucketName = "SafeBox";
 	        String key = setupPath.replace("\\", "/");
 	        
             fileStorage.putObject(new PutObjectRequest(bucketName, key, setupFile));
-            System.out.println("Uploding to S3 succeed, " + setupPath);
+            //System.out.println("Uploding to S3 succeed, " + setupPath);
 	        return true;
 		} catch (AmazonServiceException ase) {
             System.out.println("Caught an AmazonServiceException, which means your request made it "
@@ -667,7 +684,7 @@ public class SafeBoxClient {
 				toServerPath = null;
 			}
 			String os = String.format("%d;%s;%s;%s", CREATEDIR, user.getUsername(), toServerPath, dirName);
-			System.out.println(os);
+			//System.out.println(os);
 			outToServer.println(os);
 			outToServer.flush();
 
@@ -697,6 +714,8 @@ public class SafeBoxClient {
 				return;
 			}
 			deleteDirFromServer(parentPath, dirName);
+			
+			//System.out.println("Done!");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -726,7 +745,7 @@ public class SafeBoxClient {
 	        for (S3ObjectSummary objectSummary : objs.getObjectSummaries()) {
 	            fileStorage.deleteObject(bucketName, objectSummary.getKey());
 	        }	        
-	        System.out.println("The directory deleted successfully on AWS, " + dirPath);
+	        //System.out.println("The directory deleted successfully on AWS, " + dirPath);
 	        return true;
 		} catch (AmazonServiceException ase) {
             System.out.println("Caught an AmazonServiceException, which means your request made it "
@@ -831,7 +850,7 @@ public class SafeBoxClient {
 					SafeFile parentSafeDir = new SafeFile(1, parentPath, user.getUsername());
 					user.getFileMap().get(user.getUsername()).get(parentSafeDir).remove(deleteSafeDir); // delete the directory from its parent's list
 				}
-				System.out.println("Directory deleted in local successfully, " + deleteSafeDir.getFilePath());
+				//System.out.println("Directory deleted in local successfully, " + deleteSafeDir.getFilePath());
 				return true;
 			} else {
 				System.out.println("Error in deleting files in user's account, " + deleteSafeDir.getFilePath());
@@ -859,7 +878,7 @@ public class SafeBoxClient {
 				toServerPath = null;
 			}
 			String os = String.format("%d;%s;%s;%s", DELETEDIR, user.getUsername(), toServerPath, dirName);
-			System.out.println(os);
+			//System.out.println(os);
 			outToServer.println(os);
 			outToServer.flush();
 		} catch (Exception e) {
@@ -888,7 +907,8 @@ public class SafeBoxClient {
 				return;
 			}
 			putFileToServer(parentPath, fileName);
-
+			//System.out.println("Done!");
+			
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -952,13 +972,14 @@ public class SafeBoxClient {
 					}				
 					
 					if (m.get(user.getUsername()).get(parentSafeDir).add(newSafeFile)) { // add new file to parent
-						System.out.println("New file added in parent's list, " + filePath);
+						//System.out.println("New file added in parent's list, " + filePath);
 					}
 				}				
 				// add the file to the map
 				m.get(user.getUsername()).put(newSafeFile, new Vector<SafeFile>()); 
 				
-				System.out.println("New File created in local successfully, " + newSafeFile.getFilePath());
+				//System.out.println("Succeed!");
+				//System.out.println("New File created in local successfully, " + newSafeFile.getFilePath());
 				return true;
 			} else {
 				System.out.println("File exists in user's account, " + newSafeFile.getFilePath());
@@ -990,7 +1011,7 @@ public class SafeBoxClient {
 			}
 			
 			File newFile = new File(filePath); 
-			if (!newFile.exists()) {
+			if (!newFile.exists() || newFile.isDirectory()) {
 				System.out.println("The file does not exist on local machine, failed to upload to AWS, " + filePath);
 				return false;
 			}
@@ -1016,6 +1037,7 @@ public class SafeBoxClient {
 		    cipher.init(Cipher.ENCRYPT_MODE, aesFileKey);
 		    String encryptedString = parseByte2HexStr(cipher.doFinal(stringBuilder.toString().getBytes()));
 		    
+		    System.out.println("Original file content: " + stringBuilder.toString());
 		    System.out.println("Encrypted file content: " + encryptedString);
 		    
 		    // write encrypted string to file
@@ -1028,7 +1050,7 @@ public class SafeBoxClient {
 	        
             fileStorage.putObject(new PutObjectRequest(bucketName, key, encryptedFile));
             encryptedFile.delete();
-            System.out.println("Uploding to S3 succeed, " + filePath);
+            //System.out.println("Uploding to S3 succeed, " + filePath);
 	        return true;
 		} catch (AmazonServiceException ase) {
             System.out.println("Caught an AmazonServiceException, which means your request made it "
@@ -1067,7 +1089,7 @@ public class SafeBoxClient {
 				toServerPath = null;
 			}
 			String os = String.format("%d;%s;%s;%s", PUTFILE, user.getUsername(), toServerPath, fileName);
-			System.out.println(os);
+			//System.out.println(os);
 			outToServer.println(os);
 			outToServer.flush();
 
@@ -1097,6 +1119,8 @@ public class SafeBoxClient {
 				return;
 			}
 			removeFileFromServer(parentPath, fileName);
+			
+			//System.out.println("Done!");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -1183,10 +1207,10 @@ public class SafeBoxClient {
 					SafeFile parentSafeDir = new SafeFile(1, parentPath, user.getUsername());
 					m.get(user.getUsername()).get(parentSafeDir).remove(rmSafeFile); // delete the directory from its parent's list
 				}
-				System.out.println("Directory deleted in local successfully, " + rmSafeFile.getFilePath());
+				//System.out.println("Directory deleted in local successfully, " + rmSafeFile.getFilePath());
 				return true;
 			} else {
-				System.out.println("File does not exist in user's account, deleted in local successfully, " + rmSafeFile.getFilePath());
+				System.out.println("File does not exist in user's account, " + rmSafeFile.getFilePath());
 				return true;
 			}
 		} catch (Exception e) {
@@ -1211,7 +1235,7 @@ public class SafeBoxClient {
 				toServerPath = null;
 			}
 			String os = String.format("%d;%s;%s;%s", REMOVEFILE, user.getUsername(), toServerPath, fileName);
-			System.out.println(os);
+			//System.out.println(os);
 			outToServer.println(os);
 			outToServer.flush();
 
@@ -1249,7 +1273,7 @@ public class SafeBoxClient {
 			
 			// exist, send request to server
 			shareDirToServer(parentPath, dirName, friendName);
-
+			//System.out.println("Done!");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -1271,7 +1295,7 @@ public class SafeBoxClient {
 				toServerPath = null;
 			}
 			String os = String.format("%d;%s;%s;%s;%s", SHAREDIR, user.getUsername(), toServerPath, dirName, friendName);
-			System.out.println(os);
+			//System.out.println(os);
 			outToServer.println(os);
 			outToServer.flush();
 
@@ -1331,7 +1355,7 @@ public class SafeBoxClient {
 				toServerPath = null;
 			}
 			String os = String.format("%d;%s;%s;%s;%s", UNSHAREDIR, user.getUsername(), toServerPath, dirName, friendName);
-			System.out.println(os);
+			//System.out.println(os);
 			outToServer.println(os);
 			outToServer.flush();
 
@@ -1401,7 +1425,7 @@ public class SafeBoxClient {
 		    String aesfilePath = user.getUsername() + "\\" + user.getUsername() + "_" + friendName + "_AESKEY";
 			File aesStringFile = new File(aesfilePath);
 			if (aesStringFile.createNewFile()) {
-				System.out.println("Encrypted AES String file is created in local, " + aesfilePath);
+				//System.out.println("Encrypted AES String file is created in local, " + aesfilePath);
 			} else {
 				System.out.println("Encrypted AES String file exists in local, " + aesfilePath);
 			}
@@ -1414,19 +1438,23 @@ public class SafeBoxClient {
 		    outputAES.write(encryptedAESInfo);
 		    outputAES.close();
 		    
+		    System.out.println("Generated AES File Key string for " + friendName + ", "+ aesfilePath);
+		    //System.out.println("AES File Key string: " + aesFileString);
+		   // System.out.println("Encrypted AES File Key string: " + encryptedAESInfo);
+		    
 	        String keyAES = aesfilePath.replace("\\", "/");
 
 	        fileStorage.putObject("SafeBox", keyAES, aesStringFile);        
-			System.out.println("Encrypted AES String file uploaded successfully on AWS, " + aesfilePath);
+			//System.out.println("Encrypted AES String file uploaded successfully on AWS, " + aesfilePath);
 			
 			// send notification to server
 			String os = String.format("%d;%s;%s;%s;%s", SHARE_AES_KEY, user.getUsername(), parentPath, dirName, friendName);
-			System.out.println(os);
+			//System.out.println(os);
 			outToServer.println(os);
 			outToServer.flush();			
 			
 		    if (aesStringFile.delete()) {
-		    	System.out.println("Encrypted AES String file is deleted in local, " + aesfilePath);
+		    	//System.out.println("Encrypted AES String file is deleted in local, " + aesfilePath);
 		    }
 			
 		} catch (AmazonServiceException ase) {
@@ -1460,7 +1488,7 @@ public class SafeBoxClient {
 		Vector<SafeFile> subs = m.get(user.getUsername()).get(parentPath);
 		
 		for(SafeFile sf : safeFiles) {
-			if (subs.isEmpty()) {
+			if (subs == null || subs.isEmpty()) {
 				return;
 			} else if (subs.contains(sf.getFilePath())) {
 				sf.deleteFriend(friendName);
@@ -1486,7 +1514,7 @@ public class SafeBoxClient {
 				unshareSubFiles(safeFiles, sf.getFilePath(), friendName);
 			} 
 		}
-		
+		//System.out.println("Done!");
 		//createShareAESKey(String friendName, String mod, String expo);
 	}
 	
@@ -1499,14 +1527,15 @@ public class SafeBoxClient {
 	public void unshareDirNOTI(String ownerName, String parentPath, String dirPath) {
 		Map<String, Map<SafeFile, Vector<SafeFile>>> m = user.getFileMap();
 		
-		System.out.println("Unshared directory deleted in user's account successfully, " + dirPath);
+		//System.out.println("Unshared directory deleted in user's account successfully, " + dirPath);
 		SafeFile deleteSafeDir = new SafeFile(1, dirPath, ownerName);				
-		if (deleteSafeFolder(ownerName, deleteSafeDir)) {				
+		if (deleteSafeFolder(user.getUsername(), deleteSafeDir)) {				
 			if (!parentPath.equals("null")) {
 				SafeFile parentSafeDir = new SafeFile(1, parentPath, ownerName);
-				m.get(ownerName).get(parentSafeDir).remove(deleteSafeDir); // delete the directory from its parent's list
+				m.get(user.getUsername()).get(parentSafeDir).remove(deleteSafeDir); // delete the directory from its parent's list
 			}
-			System.out.println("Unshared directory deleted in user's account successfully, " + dirPath);
+			//System.out.println("Unshared directory deleted in user's account successfully, " + dirPath);
+			//System.out.println("Done!");
 		} else {
 			System.out.println("Failed to delete unshared directory in user's account, " + dirPath);
 		}
@@ -1556,8 +1585,7 @@ public class SafeBoxClient {
 	        String key = aesKeyPath.replace("\\", "/");
 
 	        S3Object obj = fileStorage.getObject(bucketName, key); 
-	        
-	        System.out.println("The file downloaded successfully on AWS, " + aesKeyPath);
+
 	        
 	        // read the content to a string
 			StringBuilder sbAES = new StringBuilder();
@@ -1575,6 +1603,7 @@ public class SafeBoxClient {
 			byte[] decryptedAESVal = cipherAES.doFinal(decodedAESValue);
 //			
 			String newAESFileString = new String(decryptedAESVal);
+
 			
 			//String newAESFileString = cipherAES.doFinal(encrpytedAESInfo.getBytes()).toString();			
 			// re-generate the aesFileKey
@@ -1584,6 +1613,11 @@ public class SafeBoxClient {
 			SecretKey newAESFileKey = keygen.generateKey();
 			// put it in the aes key map
 	        aesKeyMap.put(ownerName, newAESFileKey);       
+	        
+	        System.out.println("Downloaded " + ownerName + "'s AES File Key string, " + aesKeyPath);
+	        //System.out.println("Encrypted "+ ownerName + "'s AES File Key string: " + encryptedAESInfo);
+	       // System.out.println(ownerName + "'s AES File Key string: " + newAESFileString);
+	       // System.out.println(ownerName + "'s AES File Key: " + newAESFileKey);
 	        
 		} catch (AmazonServiceException ase) {
             System.out.println("Caught an AmazonServiceException, which means your request made it "
@@ -1611,7 +1645,7 @@ public class SafeBoxClient {
 	public void syncReq() {
 		try {
 			String os = String.format("%d;%s", SYNC, user.getUsername());
-			System.out.println(os);
+			//System.out.println(os);
 			outToServer.println(os);
 			outToServer.flush();
 			System.out.println("Synchronize request to server");
@@ -1653,7 +1687,7 @@ public class SafeBoxClient {
 	 */
 	public void sync(String filePath) {
 		try {
-			System.out.println(filePath);
+			//System.out.println(filePath);
 
 	        String[] dirs = filePath.split("\\\\");
 	        String awsPath, parentPath, dirName, fileName, localPath;
@@ -1701,9 +1735,9 @@ public class SafeBoxClient {
     			parentPath = user.getUsername() + "\\";
     		}  		
 	        if (isDir == true) {
-	        	System.out.println("The directory downloaded successfully on AWS, " + filePath);
+	        	
 	    		dirName = dirs[dirs.length - 1];
-	    		System.out.println("Sync: parentpath: " + parentPath + ", dirName: " + dirName);
+	    		//System.out.println("Sync: parentpath: " + parentPath + ", dirName: " + dirName);
 	    		createDirToLocal(parentPath, dirName);
 	    		//printFileMap();
 	    		
@@ -1712,13 +1746,13 @@ public class SafeBoxClient {
 	       		} else {
 	       			localPath = parentPath + dirName;
 	       		}
-
-	    		System.out.println("The directory downloaded successfully to local, " + localPath);
+	       		System.out.println("Directory: " + localPath);
+	    		//System.out.println("The directory downloaded successfully to local, " + localPath);
 	    		
 	        } else {
-	        	System.out.println("The file downloaded successfully on AWS, " + filePath);
+	        	
 	        	fileName = dirs[dirs.length - 1];
-	    		System.out.println("Sync: parentpath: " + parentPath + ", fileName: " + fileName);
+	    		//System.out.println("Sync: parentpath: " + parentPath + ", fileName: " + fileName);
 	    		putFileToLocal(parentPath, fileName);
 	    		//printFileMap();
 	    		
@@ -1727,7 +1761,7 @@ public class SafeBoxClient {
 	       		} else {
 	       			localPath = parentPath + fileName;
 	       		}
-	    		
+	       		System.out.println("File: " + localPath);
 	    		StringBuilder sb = new StringBuilder();
 				BufferedReader br = new BufferedReader(new InputStreamReader(obj.getObjectContent()));
 				String read;			
@@ -1739,7 +1773,7 @@ public class SafeBoxClient {
 				String ownerName = dirs[1];
 				decryption(ownerName, encryptedFileInfo, localPath);
 	    		
-	    		System.out.println("The file downloaded successfully to local, " + localPath);
+	    		//System.out.println("The file downloaded successfully to local, " + localPath);
 	        }
 	        
 	        
@@ -1812,10 +1846,10 @@ public class SafeBoxClient {
 	 */
 	public void exit() {
 		try {
-			System.out.println("Exit:");
+			System.out.println("Exit!");
 
 			String os = String.format("%d;", EXIT);
-			System.out.println(os);
+			//System.out.println(os);
 			outToServer.println(os);
 			outToServer.flush();
 		}
@@ -1834,7 +1868,7 @@ public class SafeBoxClient {
 		System.out.println("Enter operation number:\n"
 				+ "1. Register\n2. Login\n3. Logout\n4. Create Directory\n"
 				+ "5. Delete Direcotry\n6. Put File\n7. Remove File\n"
-				+ "8. Share Direcotry\n9. Unshare Direcotry\n100. Quit\n");
+				+ "8. Share Direcotry\n9. Unshare Direcotry\n100. Exit\n");
 		
 		try {
 			cmd = Integer.parseInt(br.readLine());
@@ -1912,7 +1946,7 @@ public class SafeBoxClient {
 			System.out.println("\nEnter operation number:\n"
 					+ "1. Register\n2. Login\n3. Logout\n4. Create Directory\n"
 					+ "5. Delete Direcotry\n6. Put File\n7. Remove File\n"
-					+ "8. Share Direcotry\n9. Unshare Direcotry\n100. Quit\n");
+					+ "8. Share Direcotry\n9. Unshare Direcotry\n100. Exit\n");
 
 			try {
 				cmd = Integer.parseInt(br.readLine());

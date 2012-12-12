@@ -23,13 +23,13 @@ public class User {
 			File rootDir = new File(this.username);
 			if(!rootDir.exists()) {
 			    rootDir.mkdirs();
-				System.out.println("Create root directory in local machine");
+				//System.out.println("Create root directory in local machine");
 			}
 			
 			String setupPath = this.username + "\\" + this.username + ".data";
 			File setupFile = new File(setupPath); 
 			setupFile.createNewFile();
-			System.out.println("Setup file is created successfully, " + setupPath);
+			//System.out.println("Setup file is created successfully, " + setupPath);
 			//myFile = new ConcurrentHashMap<SafeFile, Vector<SafeFile>>();
 			//sharedFile = new ConcurrentHashMap<SafeFile, Vector<SafeFile>>();
 			fileMap = new ConcurrentHashMap<String, Map<SafeFile, Vector<SafeFile>>>();
