@@ -228,7 +228,13 @@ public class UserFileMap {
 		Map<SafeFile, Vector<SafeFile>> m = fileMap.get(username); // get user's map
 		Set<SafeFile> s = m.keySet();
 		Iterator<SafeFile> it = s.iterator();
-		String filepath = String.format("%s\\%s", parentPath, filename);
+		String filepath;
+		
+		if(parentPath.equals("null")) {
+			filepath = filename;
+		} else {
+			filepath = String.format("%s\\%s", parentPath, filename);
+		}
 		while(it.hasNext()) {
 			SafeFile f = it.next();
 			if(f.getFilePath().equals(filepath)) {
@@ -330,8 +336,10 @@ public class UserFileMap {
 	public String getFileList(String fileList, String path) {
 		Map<SafeFile, Vector<SafeFile>> m = fileMap.get(username);
 
+		//System.out.println(fileList + "\n" + path);
 		Set<SafeFile> fs = m.keySet(); // all file entries
 		for(SafeFile f : fs) {
+			//System.out.println(f.getFilePath());
 			if(f.getFilePath().equals(path)) {
 				String filepath = String.format("%d\\%s\\%s", f.getIsDir(), username, f.getFilePath());
 				fileList = String.format("%s;%s", fileList, filepath);

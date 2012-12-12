@@ -223,6 +223,7 @@ public class ServerThread extends Thread {
 		
 		Vector<String> friendList = globalMap.get(owner).getFriendList(filepath);
 		String push = String.format("%d;%d\\%s\\%s\\%s", PUSH_PUT, filetype, owner, parentPath, filename);
+		System.out.println("Push " + push);
 		for(String f : friendList) { // for every friend, send push
 			UserInfo u = userMap.getUserInfo(f);
 			Socket friendSocket = u.getSocket();
@@ -232,6 +233,8 @@ public class ServerThread extends Thread {
 						new PrintWriter( friendSocket.getOutputStream() );
 					toFriend.println(push); // send push to friend
 					toFriend.flush(); 
+					
+					System.out.println("Push put to " + u.getUsername() + " " + push);
 				}  catch (IOException e) {
 					continue;
 				}
@@ -556,7 +559,12 @@ public class ServerThread extends Thread {
 		UserInfo user = userMap.getUserInfo(fields[1]); // get user info
 		UserInfo friend = userMap.getUserInfo(fields[4]); // get share friend info
 		if( user != null && friend != null ) {
-			String filepath = String.format("%s\\%s", fields[2], fields[3]);
+			String filepath;
+			if(fields[2].equals("null")) {
+				filepath = fields[3];
+			} else {
+				filepath = String.format("%s\\%s", fields[2], fields[3]);
+			}
 			String fileList = globalMap.get(fields[1]).getFileList("", filepath);
 			String request = String.format("%d;%s%s", PUSH_AES_KEY, fields[1], fileList); // type, owner name, parent path, filename
 			
@@ -567,6 +575,7 @@ public class ServerThread extends Thread {
 						new PrintWriter( friendSocket.getOutputStream() );
 					toFriend.println(request); // send request to friend
 					toFriend.flush(); 
+					System.out.println(user.getUsername() + " share AES to " + friend.getUsername() + ":\n" + request);
 				}  catch (IOException e) {
 					// do nothing
 				}

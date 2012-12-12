@@ -59,10 +59,12 @@ public class UserInfoMap {
 	}
 	
 	public boolean updatePublicKey(String username, String modulus, String exponent) {
+		
 		UserInfo user = map.get(username);
 		if (user == null) {
 			return false;
 		} else{
+			System.out.println(username + " new public key:\nmodulus: " + modulus + "\nexponent: " + exponent);
 			user.setPublicKey(modulus, exponent);
 			return true;
 		}
