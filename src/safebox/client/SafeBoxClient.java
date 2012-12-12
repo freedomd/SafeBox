@@ -1501,10 +1501,10 @@ public class SafeBoxClient {
 		
 		System.out.println("Unshared directory deleted in user's account successfully, " + dirPath);
 		SafeFile deleteSafeDir = new SafeFile(1, dirPath, ownerName);				
-		if (deleteSafeFolder(ownerName, deleteSafeDir)) {				
+		if (deleteSafeFolder(user.getUsername(), deleteSafeDir)) {				
 			if (!parentPath.equals("null")) {
 				SafeFile parentSafeDir = new SafeFile(1, parentPath, ownerName);
-				m.get(ownerName).get(parentSafeDir).remove(deleteSafeDir); // delete the directory from its parent's list
+				m.get(user.getUsername()).get(parentSafeDir).remove(deleteSafeDir); // delete the directory from its parent's list
 			}
 			System.out.println("Unshared directory deleted in user's account successfully, " + dirPath);
 		} else {
