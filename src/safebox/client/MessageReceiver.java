@@ -149,17 +149,19 @@ public class MessageReceiver extends Thread{
 						break;
 					case SHAREDIR_RES: // method_id; OK; parentPath; dirName; friendName; mod; expo;
 						if (result.equals("OK")) {
-							String dirPath, friendName, mod, expo;
-							if (!temp[2].equals("null")) {
-								dirPath = client.getUser().getUsername() + "\\" + temp[2] + "\\" + temp[3]; // path: username\parentPath\dirName
+							String parentPath, dirName, dirPath, friendName, mod, expo;
+							parentPath = temp[2];
+							dirName = temp[3];
+							if (!parentPath.equals("null")) {
+								dirPath = client.getUser().getUsername() + "\\" + parentPath + "\\" + dirName; // path: username\parentPath\dirName
 							} else {
-								dirPath = client.getUser().getUsername() + "\\" + temp[3];
+								dirPath = client.getUser().getUsername() + "\\" + dirName;
 							}
 							friendName = temp[4];
 							mod = temp[5];
 							expo = temp[6];
 							System.out.println("Share directory request accepted from " + friendName + ", " + dirPath);
-							client.shareDirAccepted(dirPath, friendName, mod, expo);
+							client.shareDirAccepted(parentPath, dirName, friendName, mod, expo);
 							
 						} else {
 							String failMessage = temp[2];
@@ -199,7 +201,21 @@ public class MessageReceiver extends Thread{
 							System.out.println("Owner is null, illegal request!");
 						}
 						break;
-					case PUSH_AES_KEY:
+					case PUSH_AES_KEY: // method_id; ownerName; file1; file2;..., aesKey: ownerName\ownerName_friendName_AESKEY	
+						if (temp[1].equals("null")) { // owner is null
+							if (temp.length == 2) {
+								System.out.println("No shared files from " + temp[1]);
+							} else {
+								client.getAESKey(temp[1]); // get the aesKey
+								for(int i = 2; i < temp.length; ++i) {
+									client.sync(temp[i]);
+								}
+								System.out.println("Download shared files from " + temp[1] + " finished!");
+							}
+						} else {
+							String failMessage = temp[2];
+							System.out.println(failMessage);
+						}
 						break;
 					case UNSHAREDIR_NOTI:
 						if (!temp[1].equals("null")) { // owner is not null
