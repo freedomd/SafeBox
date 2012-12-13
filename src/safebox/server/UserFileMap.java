@@ -146,18 +146,21 @@ public class UserFileMap {
 		} else {
 			filepath = String.format("%s\\%s", parentPath, filename);
 		}
-		//System.out.println(filepath);
+		System.out.println(filepath);
 		SafeFile ff = new SafeFile(filetype, filepath, owner); // fake file
 		if( m.containsKey(ff) ) { // exists
 			// first delete files it contains recursively 
 			while(true) {
 				Vector<SafeFile> fList = m.get(ff); // file list, check it contains or not
-				if( fList.isEmpty() ) break;
+				/*for(SafeFile fff : fList) 
+					System.out.println("wtf : " + fff.getFilePath());*/
+				if( fList.isEmpty() || filetype == FILE  ) break;
 				SafeFile f = fList.firstElement();
 				message = deleteFile(f.getIsDir(), filepath, f.getFilename(), owner);
 			} 
 			
 			// delete this file from map
+			System.out.println("Delete " + ff.getOwner() + "\\" + ff.getFilePath());
 			m.remove(ff);
 			// delete this file from parent path
 			if(!parentPath.equals("null")) {
@@ -205,8 +208,12 @@ public class UserFileMap {
 		while(it.hasNext()) {
 			SafeFile f = it.next();
 			if(f.getFilePath().equals(filepath)) {
-				m.put(f, um.get(f));
-				for(SafeFile ff : um.get(f)) {
+				Vector<SafeFile> fList = um.get(f);
+				m.put(f, fList);
+				System.out.println("Add: " + f.getFilePath());
+				for(SafeFile fff : fList) 
+					System.out.println("\t" + fff.getFilePath());
+				for(SafeFile ff : fList) {
 					addShareFile(f.getFilePath(), ff.getFilename(), um, owner);
 				}
 				break;
