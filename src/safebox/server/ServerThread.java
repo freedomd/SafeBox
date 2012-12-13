@@ -288,6 +288,21 @@ public class ServerThread extends Thread {
 		UserInfo user = userMap.getUserInfo(fields[1]); // get user info
 		if( user != null ) {
 			String message = globalMap.get(fields[1]).addNewFile(DIR, fields[2], fields[3], fields[1]); // type, parent path, filename, owner name
+			
+			// add share info if parent has a friend list
+			Set<SafeFile> kSet = globalMap.get(fields[1]).getFileMap().get(fields[1]).keySet();
+			for(SafeFile k : kSet) { 
+				if(k.getFilePath().equals(fields[2])) {
+					Vector<String> friendList = k.getFriendList();
+					for(String friend : friendList) {
+						message = globalMap.get(friend).addShareFile(fields[2], fields[3], globalMap.get(fields[1]).getFileMap().get(fields[1]), fields[1]); // add share file recursively
+						globalMap.get(friend).printFileMap();
+						message = globalMap.get(fields[1]).addShareInfo(fields[2], fields[3], friend); // parent path, filename, share friend name
+					}
+					break;
+				}
+			}
+			
 			if(message == null) {
 				pushPut(DIR, fields[1], fields[2], fields[3]);
 				response = String.format("%d;OK;%s;%s;", CREATEDIR_RES, fields[2], fields[3]); 
@@ -333,6 +348,21 @@ public class ServerThread extends Thread {
 		UserInfo user = userMap.getUserInfo(fields[1]); // get user info
 		if( user != null ) {
 			String message = globalMap.get(fields[1]).addNewFile(FILE, fields[2], fields[3], fields[1]); // type, parent path, filename, owner name
+			
+			// add share info if parent has a friend list
+			Set<SafeFile> kSet = globalMap.get(fields[1]).getFileMap().get(fields[1]).keySet();
+			for(SafeFile k : kSet) {
+				if(k.getFilePath().equals(fields[2])) {
+					Vector<String> friendList = k.getFriendList();
+					for(String friend : friendList) {
+						message = globalMap.get(friend).addShareFile(fields[2], fields[3], globalMap.get(fields[1]).getFileMap().get(fields[1]), fields[1]); // add share file recursively
+						globalMap.get(friend).printFileMap();
+						message = globalMap.get(fields[1]).addShareInfo(fields[2], fields[3], friend); // parent path, filename, share friend name
+					}
+					break;
+				}
+			}
+			
 			if(message == null) {
 				pushPut(FILE, fields[1], fields[2], fields[3]);
 				response = String.format("%d;OK;%s;%s;", PUTFILE_RES, fields[2], fields[3]); 
@@ -512,6 +542,7 @@ public class ServerThread extends Thread {
 			}
 			
 			if(friendSocket == null) { // user is logout
+				System.out.println(fields[4] + " is offline.");
 				friend.addRequest(notification); // add this notification to wait list		
 			} else {
 				try {
