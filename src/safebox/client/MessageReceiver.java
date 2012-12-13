@@ -196,7 +196,7 @@ public class MessageReceiver extends Thread{
 							} else {
 								dirPath = parentPath + "\\" + dirName;
 							}
-							System.out.println("Share directory request from " + ownerName + ", " + dirPath);
+							System.out.println("\nShare directory request from " + ownerName + ", " + dirPath);
 							//client.shareDirChoice(ownerName, parentPath, dirName);
 						} else {
 							System.out.println("Owner is null, illegal request!");
@@ -209,7 +209,7 @@ public class MessageReceiver extends Thread{
 							} else {
 								System.out.println(temp[1] + " uploaded AES File Key String");
 								client.getAESKey(temp[1]); // get the aesKey
-								System.out.println("Synchronizing files from, " + temp[1] + "...");
+								System.out.println("\nSynchronizing files from " + temp[1] + "...");
 								for(int i = 2; i < temp.length; ++i) {
 									client.sync(temp[i]);
 								}
