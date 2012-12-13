@@ -838,7 +838,7 @@ public class SafeBoxClient {
 					System.out.println("Cannot remove the directory in local, " + dirPath);
 					return false;
 				} else if (!deleteDir.isDirectory()) {
-					System.out.println("It's a file, cannot remove! " + dirPath);
+					//System.out.println("It's a file, cannot remove! " + dirPath);
 				}
 			} else {
 				System.out.println("The directory does not exist in local, " + dirPath);
